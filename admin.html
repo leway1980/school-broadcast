@@ -6,16 +6,21 @@
     <title>校園廣播系統 - 行政管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; }
+        .main-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+        @media (min-width: 1024px) { .main-grid { grid-template-columns: 400px 1fr; } }
         .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem; }
-        .unit-management { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out; }
-        .unit-management.expanded { max-height: 500px; }
+        .unit-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-radius: 0.25rem; }
+        .unit-item:hover { background-color: #e9ecef; }
+        .unit-item input { border: none; background: transparent; }
+        .unit-item button { color: #dc3545; }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
+<body class="flex items-center justify-center min-h-screen p-4">
 
     <!-- 登入畫面 -->
-    <div id="login-container" class="text-center p-8 bg-white rounded-lg shadow-xl">
+    <div id="login-container" class="text-center p-8 bg-white rounded-lg shadow-xl max-w-md w-full">
         <h1 class="text-2xl font-bold mb-4">校園廣播系統</h1>
         <p class="text-gray-600 mb-6">請使用學校 G Suite 帳號登入</p>
         <button id="login-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center mx-auto">
@@ -25,55 +30,80 @@
     </div>
 
     <!-- 主操作畫面 -->
-    <main id="main-container" class="w-full max-w-7xl mx-auto p-8 bg-white rounded-lg shadow-xl hidden">
-        <div class="flex justify-between items-center mb-6 border-b pb-4">
-            <div><h1 class="text-3xl font-bold text-gray-800">行政管理後台</h1><p id="user-info" class="text-sm text-gray-500 mt-1"></p></div>
+    <div id="main-container" class="w-full max-w-7xl p-8 bg-white rounded-lg shadow-xl hidden">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b">
+            <div>
+                <h1 class="text-3xl font-bold">行政管理後台</h1>
+                <p id="user-info" class="text-sm text-gray-500"></p>
+            </div>
             <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">登出</button>
         </div>
-        <div id="permission-denied" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6"><p class="font-bold">權限不足</p><p>您的帳號不在管理員名單中。</p></div>
-        <div id="app-content" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <div id="permission-denied" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+            <p class="font-bold">權限不足</p><p>您的帳號不在管理員名單中，無法執行此操作。</p>
+        </div>
+
+        <div id="app-content" class="main-grid">
+            <!-- Left Column: Form -->
             <form id="broadcast-form" class="space-y-6">
-                 <input type="hidden" id="editing-message-id">
-                 <div>
-                    <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
-                    <div class="flex gap-2 mt-1">
-                        <select id="unit-select" class="block w-full border-gray-300 rounded-md shadow-sm"></select>
-                        <button type="button" id="toggle-unit-management" class="flex-shrink-0 bg-gray-200 px-3 rounded-md hover:bg-gray-300">管理</button>
+                <input type="hidden" id="edit-mode-doc-id">
+                <!-- Unit & Duration -->
+                <div class="flex gap-4">
+                    <div class="flex-grow">
+                        <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</top>
+                        <select id="unit-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">持續時間</label>
+                        <div class="mt-1 flex space-x-2">
+                             <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked><label for="dur_8h" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">8小時</label>
+                             <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer"><label for="dur_1d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">1天</label>
+                             <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer"><label for="dur_2d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">2天</label>
+                        </div>
                     </div>
                 </div>
-                <div id="unit-management" class="unit-management mt-2 p-4 border rounded-md bg-gray-50 space-y-2"></div>
-                 <div>
+                <!-- Unit Management -->
+                <details id="unit-management">
+                    <summary class="cursor-pointer text-blue-600 hover:underline">管理發布單位 ▾</summary>
+                    <div id="unit-list" class="mt-2 p-4 border rounded-md space-y-2"></div>
+                    <button type="button" id="add-unit-btn" class="mt-2 text-sm text-green-600">✚ 新增單位</button>
+                    <button type="button" id="save-units-btn" class="mt-2 text-sm text-white bg-blue-500 px-3 py-1 rounded">儲存單位變更</button>
+                </details>
+                <!-- Target Audience -->
+                <div>
                     <label class="block text-sm font-medium text-gray-700">廣播對象</label>
-                    <div class="flex items-center space-x-4 mt-2 mb-2">
-                         <button type="button" id="select-all-btn" class="text-sm text-blue-600 hover:underline">全選</button>
-                         <button type="button" id="deselect-all-btn" class="text-sm text-blue-600 hover:underline">取消全選</button>
-                    </div>
-                    <div id="class-checkbox-container" class="class-grid p-4 border rounded-md max-h-48 overflow-y-auto"></div>
+                    <div id="class-checkbox-container" class="mt-2 p-4 border rounded-md max-h-60 overflow-y-auto space-y-2"></div>
                 </div>
+                <!-- Content -->
                 <div>
                     <label for="message-content" class="block text-sm font-medium text-gray-700">訊息內容</label>
-                    <textarea id="message-content" rows="5" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"></textarea>
+                    <textarea id="message-content" rows="5" class="mt-1 shadow-sm block w-full sm:text-sm border border-gray-300 rounded-md"></textarea>
                 </div>
-                <div class="flex justify-between items-center">
-                    <div>
-                        <label class="text-sm font-medium text-gray-700">持續時間</label>
-                        <fieldset class="mt-2 flex space-x-4"><label><input type="radio" name="duration" value="8" checked> 8小時</label><label><input type="radio" name="duration" value="24"> 1天</label><label><input type="radio" name="duration" value="48"> 2天</label></fieldset>
-                    </div>
-                    <div class="flex items-center"><input id="is-emergency" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded"><label for="is-emergency" class="ml-2 font-medium text-gray-700">設為緊急訊息</label></div>
+                 <!-- Emergency -->
+                <div class="flex items-center">
+                    <input id="is-emergency" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded">
+                    <label for="is-emergency" class="ml-2 block text-sm text-gray-900">設為緊急訊息</label>
                 </div>
-                <div><button type="submit" class="w-full py-3 px-4 rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">發布/更新公告</button></div>
+                <!-- Submit -->
+                <div class="flex gap-4">
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">發布/更新公告</button>
+                    <button type="button" id="cancel-edit-btn" class="w-1/3 flex justify-center py-2 px-4 border rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 hidden">取消編輯</button>
+                </div>
             </form>
-            <div class="space-y-4">
-                <h2 class="text-xl font-bold text-gray-800 border-b pb-2">目前有效公告</h2>
-                <div id="message-list-container" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2"></div>
+
+            <!-- Right Column: Message List -->
+            <div id="message-list-container" class="border-l pl-6">
+                 <h2 class="text-xl font-bold mb-4">即時訊息列表 (未過期)</h2>
+                 <div id="message-list" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2"></div>
             </div>
         </div>
-    </main>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, addDoc, updateDoc, setDoc, deleteDoc, serverTimestamp, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-        
+        import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, getDocs, orderBy, query, writeBatch, deleteDoc, updateDoc, onSnapshot, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
             authDomain: "school-broadcast-system.firebaseapp.com",
@@ -83,49 +113,43 @@
             appId: "1:1057938447303:web:81042cfb29f24bc4ff97e2",
             measurementId: "G-LLRPYTW9QX"
         };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ 'hd': 'tcsh.hlc.edu.tw' });
-
-        const ui = {
-            loginContainer: document.getElementById('login-container'),
-            mainContainer: document.getElementById('main-container'),
-            loginBtn: document.getElementById('login-btn'),
-            logoutBtn: document.getElementById('logout-btn'),
-            userInfo: document.getElementById('user-info'),
-            appContent: document.getElementById('app-content'),
-            permissionDenied: document.getElementById('permission-denied'),
-            broadcastForm: document.getElementById('broadcast-form'),
-            editingMessageId: document.getElementById('editing-message-id'),
-            unitSelect: document.getElementById('unit-select'),
-            toggleUnitManagement: document.getElementById('toggle-unit-management'),
-            unitManagement: document.getElementById('unit-management'),
-            classCheckboxContainer: document.getElementById('class-checkbox-container'),
-            selectAllBtn: document.getElementById('select-all-btn'),
-            deselectAllBtn: document.getElementById('deselect-all-btn'),
-            messageContent: document.getElementById('message-content'),
-            isEmergency: document.getElementById('is-emergency'),
-            messageListContainer: document.getElementById('message-list-container')
-        };
         
-        let unitsUnsubscribe = null;
-        let classesUnsubscribe = null;
-        let messagesUnsubscribe = null;
+        // DOM Elements
+        const loginContainer = document.getElementById('login-container');
+        const mainContainer = document.getElementById('main-container');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userInfo = document.getElementById('user-info');
+        const broadcastForm = document.getElementById('broadcast-form');
+        const permissionDenied = document.getElementById('permission-denied');
+        const appContent = document.getElementById('app-content');
+        const unitSelect = document.getElementById('unit-select');
+        const unitList = document.getElementById('unit-list');
+        const addUnitBtn = document.getElementById('add-unit-btn');
+        const saveUnitsBtn = document.getElementById('save-units-btn');
+        const classCheckboxContainer = document.getElementById('class-checkbox-container');
+        const messageList = document.getElementById('message-list');
+        const editModeDocId = document.getElementById('edit-mode-doc-id');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        
+        let unitData = []; // Store original unit data {id, name}
 
+        // Auth State
         onAuthStateChanged(auth, user => {
             if (user && user.email.endsWith('@tcsh.hlc.edu.tw')) {
-                ui.loginContainer.classList.add('hidden');
-                ui.mainContainer.classList.remove('hidden');
-                ui.userInfo.textContent = `${user.displayName} (${user.email})`;
+                loginContainer.classList.add('hidden');
+                mainContainer.classList.remove('hidden');
+                userInfo.textContent = `管理員：${user.displayName} (${user.email})`;
                 checkAdminPermission(user.email);
             } else {
-                ui.mainContainer.classList.add('hidden');
-                ui.loginContainer.classList.remove('hidden');
-                if (unitsUnsubscribe) unitsUnsubscribe();
-                if (classesUnsubscribe) classesUnsubscribe();
-                if (messagesUnsubscribe) messagesUnsubscribe();
+                mainContainer.classList.add('hidden');
+                loginContainer.classList.remove('hidden');
             }
         });
 
@@ -133,133 +157,235 @@
             const docRef = doc(db, "admins", email);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                ui.appContent.classList.remove('hidden');
-                ui.permissionDenied.classList.add('hidden');
-                listenToData();
+                appContent.classList.remove('hidden');
+                permissionDenied.classList.add('hidden');
+                loadInitialData();
             } else {
-                ui.appContent.classList.add('hidden');
-                ui.permissionDenied.classList.remove('hidden');
+                appContent.classList.add('hidden');
+                permissionDenied.classList.remove('hidden');
             }
         }
         
-        function listenToData() {
-            listenToUnits();
-            listenToClasses();
-            listenToMessages();
-        }
-
-        function listenToUnits() {
-            if (unitsUnsubscribe) unitsUnsubscribe();
-            unitsUnsubscribe = onSnapshot(query(collection(db, "units"), orderBy("name")), snapshot => {
-                const units = [];
-                snapshot.forEach(doc => units.push({ id: doc.id, ...doc.data() }));
-                renderUnits(units);
+        // Data Loading and Rendering
+        function loadInitialData() {
+            // Real-time listeners
+            onSnapshot(collection(db, "units"), (snapshot) => {
+                unitData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUnits();
             });
-        }
-
-        function renderUnits(units) {
-            ui.unitSelect.innerHTML = '<option value="">請選擇</option>';
-            units.forEach(u => ui.unitSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`);
-            
-            ui.unitManagement.innerHTML = '<div>';
-            units.forEach(u => {
-                ui.unitManagement.innerHTML += `<div class="flex items-center gap-2"><input class="flex-grow border rounded px-2" value="${u.name}" data-id="${u.id}"><button data-id="${u.id}" class="unit-delete-btn text-red-500">✖</button></div>`;
+            onSnapshot(collection(db, "class_map"), orderBy("classId"), (snapshot) => {
+                renderClassCheckboxes(snapshot.docs.map(doc => doc.data()));
             });
-            ui.unitManagement.innerHTML += '</div><button type="button" id="unit-add-btn" class="text-blue-500 mt-2">✚ 新增單位</button><button type="button" id="unit-save-btn" class="bg-green-500 text-white px-3 py-1 rounded ml-4">儲存變更</button>';
-        }
-
-        function listenToClasses() {
-            if (classesUnsubscribe) classesUnsubscribe();
-            classesUnsubscribe = onSnapshot(query(collection(db, "class_map"), orderBy("classId")), snapshot => {
-                ui.classCheckboxContainer.innerHTML = '<div class="flex items-center"><input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4"><label for="class-All" class="ml-2 font-bold">全校廣播</label></div>';
-                snapshot.forEach(doc => {
-                    const c = doc.data();
-                    ui.classCheckboxContainer.innerHTML += `<div class="flex items-center"><input id="class-${c.classId}" name="targetClasses" value="${c.classId}" type="checkbox"><label for="class-${c.classId}" class="ml-2">${c.name}</label></div>`;
-                });
-            });
-        }
-        
-        function listenToMessages() {
-            if (messagesUnsubscribe) messagesUnsubscribe();
             const q = query(collection(db, "messages"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "desc"));
-            messagesUnsubscribe = onSnapshot(q, snapshot => {
-                ui.messageListContainer.innerHTML = '';
-                if(snapshot.empty) ui.messageListContainer.innerHTML = '<p class="text-gray-500">目前沒有有效公告。</p>';
-                snapshot.forEach(doc => renderMessageCard(doc.id, doc.data()));
+            onSnapshot(q, (snapshot) => {
+                renderMessages(snapshot.docs);
             });
         }
         
-        function renderMessageCard(id, data) {
-            const remaining = Math.round((data.expiresAt.toDate() - new Date()) / 3600000);
-            const targets = data.targetClasses.includes("All") ? "全校" : data.targetClasses.join(', ');
-            ui.messageListContainer.innerHTML += `
-                <div class="border rounded-lg p-3 ${data.isEmergency ? 'bg-red-50' : ''}">
-                    <p class="font-bold">${data.content}</p>
-                    <p class="text-sm text-gray-600">To: ${targets} | By: ${data.unit}</p>
-                    <p class="text-xs text-gray-500">剩餘 ${remaining} 小時</p>
-                    <div class="mt-2 text-right"><button data-id="${id}" class="msg-edit-btn text-blue-500 text-sm mr-2">編輯</button><button data-id="${id}" class="msg-delete-btn text-red-500 text-sm">刪除</button></div>
-                </div>`;
+        function renderUnits() {
+            unitSelect.innerHTML = '<option value="">請選擇單位</option>';
+            unitList.innerHTML = '';
+            unitData.forEach(({ id, name }) => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                unitSelect.appendChild(option);
+
+                const item = document.createElement('div');
+                item.className = 'unit-item';
+                item.innerHTML = `<input type="text" value="${name}" data-id="${id}" class="flex-grow"><button data-id="${id}" class="remove-unit-btn">✖</button>`;
+                unitList.appendChild(item);
+            });
+            document.querySelectorAll('.remove-unit-btn').forEach(btn => btn.addEventListener('click', () => btn.parentElement.remove()));
         }
         
-        // Event Listeners
-        ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
-        ui.logoutBtn.addEventListener('click', () => signOut(auth));
-        ui.toggleUnitManagement.addEventListener('click', () => ui.unitManagement.classList.toggle('expanded'));
-        ui.selectAllBtn.addEventListener('click', () => document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = true));
-        ui.deselectAllBtn.addEventListener('click', () => document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false));
+        function renderClassCheckboxes(classes) {
+             classCheckboxContainer.innerHTML = '';
+             const grades = {};
+             // Add All-School option first
+             const allDiv = document.createElement('div');
+             allDiv.innerHTML = `<div class="flex items-center font-bold"><input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4"><label for="class-All" class="ml-2">全校廣播</label></div>`;
+             classCheckboxContainer.appendChild(allDiv);
 
-        document.addEventListener('click', async e => {
-             if (e.target.id === 'unit-save-btn') {
-                const batch = writeBatch(db);
-                ui.unitManagement.querySelectorAll('input').forEach(input => {
-                    batch.set(doc(db, "units", input.dataset.id), { name: input.value });
-                });
-                await batch.commit();
-                alert('單位已更新');
+             classes.forEach(c => {
+                 const grade = c.name.split('-')[0];
+                 if (!grades[grade]) grades[grade] = [];
+                 grades[grade].push(c);
+             });
+
+             for (const grade in grades) {
+                const gradeDiv = document.createElement('div');
+                gradeDiv.className = "mt-2";
+                const gradeCheckboxHTML = `<div class="flex items-center font-semibold"><input id="grade-${grade}" type="checkbox" class="h-4 w-4 grade-checkbox" data-grade="${grade}"><label for="grade-${grade}" class="ml-2">${grade}</label></div>`;
+                const classCheckboxesHTML = `<div class="class-grid pl-6 mt-1">${grades[grade].map(c => `<div class="flex items-center"><input id="class-${c.classId}" name="targetClasses" value="${c.classId}" type="checkbox" class="h-4 w-4 class-checkbox-${grade}"><label for="class-${c.classId}" class="ml-2">${c.name.split('-')[1]}</label></div>`).join('')}</div>`;
+                gradeDiv.innerHTML = gradeCheckboxHTML + classCheckboxesHTML;
+                classCheckboxContainer.appendChild(gradeDiv);
+             }
+             // Add event listeners for grade-level checkboxes
+             document.querySelectorAll('.grade-checkbox').forEach(cb => {
+                 cb.addEventListener('change', (e) => {
+                     const grade = e.target.dataset.grade;
+                     document.querySelectorAll(`.class-checkbox-${grade}`).forEach(classCb => classCb.checked = e.target.checked);
+                 });
+             });
+        }
+
+        function renderMessages(docs) {
+            messageList.innerHTML = '';
+            if (docs.length === 0) {
+                 messageList.innerHTML = `<p class="text-gray-500 text-center">沒有未過期的訊息。</p>`;
             }
-            if (e.target.id === 'unit-add-btn') {
-                const name = prompt('請輸入新單位名稱:');
-                if(name) await addDoc(collection(db, "units"), { name });
-            }
-            if (e.target.classList.contains('unit-delete-btn')) {
-                if(confirm('確定刪除此單位?')) await deleteDoc(doc(db, "units", e.target.dataset.id));
-            }
-            if (e.target.classList.contains('msg-delete-btn')) {
-                if(confirm('確定刪除此公告?')) await updateDoc(doc(db, "messages", e.target.dataset.id), { expiresAt: new Date() });
-            }
-            if (e.target.classList.contains('msg-edit-btn')) {
-                const docSnap = await getDoc(doc(db, "messages", e.target.dataset.id));
-                const data = docSnap.data();
-                ui.editingMessageId.value = docSnap.id;
-                ui.unitSelect.value = data.unit;
-                ui.messageContent.value = data.content;
-                ui.isEmergency.checked = data.isEmergency;
-                document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = data.targetClasses.includes(cb.value));
-            }
+            docs.forEach(doc => {
+                const msg = { id: doc.id, ...doc.data() };
+                const card = document.createElement('div');
+                card.className = `p-4 border rounded-md ${msg.isEmergency ? 'bg-red-50 border-red-200' : 'bg-gray-50'}`;
+                
+                const timeLeft = Math.round((msg.expiresAt.toDate() - new Date()) / (1000 * 60 * 60));
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-bold">${msg.unit}</p>
+                            <p class="text-sm mt-1">${msg.content}</p>
+                        </div>
+                        <div class="flex gap-2">
+                             <button class="edit-btn text-sm text-blue-500" data-id="${msg.id}">編輯</button>
+                             <button class="delete-btn text-sm text-red-500" data-id="${msg.id}">刪除</button>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2 pt-2 border-t">
+                        發布給: ${msg.targetClasses.join(', ')} | ${msg.isEmergency ? '<span class="font-bold text-red-600">緊急</span> |' : ''} 剩餘: ${timeLeft} 小時
+                    </div>
+                `;
+                messageList.appendChild(card);
+            });
+            
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', () => handleEdit(btn.dataset.id)));
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => handleDelete(btn.dataset.id)));
+        }
+        
+        // Event Handlers
+        loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
+        addUnitBtn.addEventListener('click', () => {
+            const item = document.createElement('div');
+            item.className = 'unit-item';
+            item.innerHTML = `<input type="text" placeholder="新單位名稱" data-id="" class="flex-grow"><button class="remove-unit-btn">✖</button>`;
+            unitList.appendChild(item);
+            item.querySelector('button').addEventListener('click', () => item.remove());
         });
         
-        ui.broadcastForm.addEventListener('submit', async e => {
+        saveUnitsBtn.addEventListener('click', async () => {
+            const batch = writeBatch(db);
+            const newUnitElements = unitList.querySelectorAll('input');
+            const newUnitNames = new Set();
+            let hasError = false;
+
+            newUnitElements.forEach(input => {
+                const name = input.value.trim();
+                if (!name) { alert("單位名稱不可為空！"); hasError = true; return; }
+                if (newUnitNames.has(name)) { alert(`單位名稱 "${name}" 重複！`); hasError = true; return; }
+                newUnitNames.add(name);
+                
+                const id = input.dataset.id;
+                if (id) { // Update existing
+                    batch.update(doc(db, "units", id), { name });
+                } else { // Add new
+                    batch.set(doc(collection(db, "units")), { name });
+                }
+            });
+
+            if (hasError) return;
+
+            // Handle deletions
+            const originalNames = new Set(unitData.map(u => u.name));
+            const currentNames = new Set(Array.from(newUnitElements).map(el => el.value.trim()));
+            originalNames.forEach(name => {
+                if (!currentNames.has(name)) {
+                    const unitToDelete = unitData.find(u => u.name === name);
+                    if (unitToDelete) batch.delete(doc(db, "units", unitToDelete.id));
+                }
+            });
+            
+            try {
+                await batch.commit();
+                alert("單位列表更新成功！");
+                document.getElementById('unit-management').open = false;
+            } catch (e) { alert("更新失敗：" + e.message); }
+        });
+
+        broadcastForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const message = {
-                unit: ui.unitSelect.value,
-                content: ui.messageContent.value,
-                isEmergency: ui.isEmergency.checked,
-                targetClasses: Array.from(document.querySelectorAll('input[name="targetClasses"]:checked')).map(cb => cb.value),
+            const unit = broadcastForm.querySelector('#unit-select').value;
+            const content = broadcastForm.querySelector('#message-content').value;
+            const isEmergency = broadcastForm.querySelector('#is-emergency').checked;
+            const durationHours = parseInt(broadcastForm.querySelector('input[name="duration"]:checked').value);
+            const selectedClasses = Array.from(document.querySelectorAll('input[name="targetClasses"]:checked')).map(cb => cb.value);
+
+            if (!unit || !content.trim() || selectedClasses.length === 0) {
+                alert('發布單位、訊息內容和廣播對象皆不可為空！'); return;
+            }
+
+            const messageData = {
+                unit, content, isEmergency,
+                targetClasses: selectedClasses,
                 author: { name: auth.currentUser.displayName, email: auth.currentUser.email },
                 createdAt: serverTimestamp(),
-                expiresAt: new Date(Date.now() + Number(document.querySelector('input[name="duration"]:checked').value) * 3600000)
+                expiresAt: new Date(Date.now() + durationHours * 60 * 60 * 1000)
             };
-            if(message.targetClasses.length === 0 || !message.unit || !message.content) return alert('所有欄位皆必填');
             
-            if (ui.editingMessageId.value) {
-                await updateDoc(doc(db, "messages", ui.editingMessageId.value), message);
-            } else {
-                await addDoc(collection(db, "messages"), message);
-            }
-            alert('公告已發布/更新');
-            ui.broadcastForm.reset();
-            ui.deselectAllBtn.click();
+            try {
+                const docId = editModeDocId.value;
+                if (docId) { // Edit mode
+                    await updateDoc(doc(db, "messages", docId), messageData);
+                    alert('公告更新成功！');
+                } else { // Create mode
+                    await addDoc(collection(db, "messages"), messageData);
+                    alert('公告發布成功！');
+                }
+                resetForm();
+            } catch (error) { alert(`操作失敗: ${error.message}`); }
         });
+
+        cancelEditBtn.addEventListener('click', resetForm);
+        
+        async function handleEdit(id) {
+            const docRef = doc(db, "messages", id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const msg = docSnap.data();
+                editModeDocId.value = id;
+                document.querySelector('#unit-select').value = msg.unit;
+                document.querySelector('#message-content').value = msg.content;
+                document.querySelector('#is-emergency').checked = msg.isEmergency;
+                // Reset and check target classes
+                document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false);
+                msg.targetClasses.forEach(classId => {
+                    const cb = document.querySelector(`input[value="${classId}"]`);
+                    if(cb) cb.checked = true;
+                });
+                cancelEditBtn.classList.remove('hidden');
+                window.scrollTo(0, 0);
+            }
+        }
+        
+        async function handleDelete(id) {
+            if (confirm("確定要刪除（使此訊息立即過期）嗎？")) {
+                await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
+                alert("訊息已刪除。");
+            }
+        }
+        
+        function resetForm() {
+            broadcastForm.reset();
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.querySelector('input[name="duration"][value="8"]').checked = true;
+            editModeDocId.value = '';
+            cancelEditBtn.classList.add('hidden');
+        }
+
     </script>
 </body>
 </html>
+
