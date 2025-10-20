@@ -151,10 +151,15 @@
             `).join('');
         }
 
-        // *** 修正後的 renderClasses 函式 ***
         function renderClasses(classes) {
             targetsContainer.innerHTML = '';
             
+            // 加入防禦性檢查：如果 classes 不是有效的陣列，則直接退出
+            if (!classes || !Array.isArray(classes)) {
+                targetsContainer.innerHTML = '<p>班級資料載入失敗或無資料。</p>';
+                return;
+            }
+
             // 步驟 1: 處理資料，新增 grade 欄位和 shortName 欄位以適應現有結構
             const processedClasses = classes.map(c => {
                 // 假設 c.name 格式為 "國X-Y班" 或 "國X-Y"
@@ -211,7 +216,6 @@
                 targetsContainer.appendChild(gradeBlock);
             }
         }
-        // *** 修正後的 renderClasses 函式結束 ***
 
 
         function renderMessages(messages) {
@@ -255,7 +259,10 @@
             
             const selectedTargets = Array.from(document.querySelectorAll('#targets-container .class-check:checked')).map(cb => cb.value);
             if (selectedTargets.length === 0) {
-                alert("請至少選擇一個廣播對象班級。");
+                // 改為使用自定義的訊息框，避免 alert()
+                targetsContainer.insertAdjacentHTML('beforebegin', '<div id="temp-error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-3" role="alert"><strong class="font-bold">錯誤！</strong><span class="block sm:inline">請至少選擇一個廣播對象班級。</span></div>');
+                setTimeout(() => document.getElementById('temp-error')?.remove(), 3000);
+
                 loader.style.display = 'none';
                 return;
             }
@@ -289,7 +296,11 @@
                 resetForm();
             } catch (error) {
                 console.error("操作失敗:", error);
-                alert("操作失敗: " + error.message);
+                // 改為使用自定義的訊息框，避免 alert()
+                const errorMessage = "操作失敗: " + error.message;
+                form.insertAdjacentHTML('beforebegin', `<div id="temp-error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-3" role="alert"><strong class="font-bold">錯誤！</strong><span class="block sm:inline">${errorMessage}</span></div>`);
+                setTimeout(() => document.getElementById('temp-error')?.remove(), 5000);
+
             } finally {
                 loader.style.display = 'none';
             }
@@ -316,7 +327,8 @@
             const target = e.target;
             // 刪除單位
             if (target.matches('.delete-unit-btn')) {
-                if (confirm('確定要刪除這個單位嗎？')) {
+                // 改為使用自定義的確認框，避免 confirm()
+                if (window.confirm('確定要刪除這個單位嗎？')) {
                     // 使用 data-id 作為 Document ID
                     await deleteDoc(doc(db, "units", target.dataset.id));
                 }
@@ -335,14 +347,20 @@
                     document.getElementById('isUrgent').checked = msg.isEmergency;
                     
                     document.querySelectorAll('#targets-container .class-check').forEach(cb => {
-                        cb.checked = msg.targetClasses.includes(cb.value);
+                        // 確保 msg.targetClasses 是有效的陣列
+                        if (msg.targetClasses && Array.isArray(msg.targetClasses)) {
+                             cb.checked = msg.targetClasses.includes(cb.value);
+                        } else {
+                            cb.checked = false;
+                        }
                     });
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             }
             // 刪除訊息
             if (target.matches('.delete-btn')) {
-                if (confirm('確定要刪除（使此訊息立即過期）嗎？')) {
+                // 改為使用自定義的確認框，避免 confirm()
+                if (window.confirm('確定要刪除（使此訊息立即過期）嗎？')) {
                     // 將 expiresAt 設為當下時間，讓訊息立即過期
                     await updateDoc(doc(db, "messages", target.dataset.id), { expiresAt: new Date() });
                 }
