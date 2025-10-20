@@ -47,13 +47,7 @@
         #message-list-container .card-footer { font-size: 0.8rem; color: #6c757d; }
         #message-list-container .card-actions button { margin-left: 0.5rem; }
         #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .hidden-content { display: none; }
-        .google-btn {
-            display: flex; align-items: center; justify-content: center;
-            background-color: #4285F4; color: white;
-            padding: 0.75rem 1.5rem; border-radius: 4px; font-weight: bold;
-        }
-        .google-btn img { margin-right: 10px; }
+        .hidden-content { display: none !important; } /* 使用 !important 確保完全覆蓋 */
         .login-container {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -103,7 +97,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="form-group"><label>廣播對象</label><div id="targets-container"><p>請先登入...</p></div></div>
+                    <div class="form-group"><label>廣播對象</label><div id="targets-container"><p class="text-gray-500">正在載入班級資料...</p></div></div>
                     <div class="form-group"><label for="content">訊息內容</label><textarea id="content" name="content" required></textarea></div>
                     <div class="form-group"><label class="flex items-center cursor-pointer"><input type="checkbox" id="isUrgent" name="isUrgent" class="mr-2 h-4 w-4"> 設為緊急訊息</label></div>
                     <div class="flex gap-2">
@@ -116,11 +110,11 @@
         </div>
         <div class="panel list-panel">
             <div class="panel-header"><h2>已發布訊息列表</h2></div>
-            <div class="panel-body" id="message-list-container"><p>載入訊息中...</p></div>
+            <div class="panel-body" id="message-list-container"><p class="text-gray-500">正在載入訊息列表...</p></div>
         </div>
     </div>
     
-    <div id="loader" class="hidden-content">
+    <div id="loader">
         <p style="font-size: 1.5rem;">載入中...</p>
     </div>
 
@@ -129,6 +123,10 @@
         import { getFirestore, collection, addDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, doc, updateDoc, getDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         
+        // 設定 Firebase Debug Log 等級
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        setLogLevel('debug'); // 啟用 debug 模式以查看更多 Firestore 訊息
+
         const firebaseConfig = {
             apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
             authDomain: "school-broadcast-system.firebaseapp.com",
@@ -166,16 +164,19 @@
         const addUnitBtn = document.getElementById('addUnitBtn');
         const newUnitNameInput = document.getElementById('new-unit-name');
         
-        // 追蹤 [units, classes, messages] 的首次載入狀態
-        let initialLoads = [false, false, false]; 
+        // 追蹤 [units (0), classes (1), messages (2)] 的首次載入狀態
+        const initialLoads = [false, false, false]; 
         let authReady = false; 
 
+        /**
+         * 顯示或隱藏載入畫面。
+         * 移除 hidden-content class 後，loader 的 z-index: 1000 會遮擋並阻止點擊。
+         * @param {boolean} show 是否顯示
+         */
         function showLoader(show) {
-            // 確保載入畫面能覆蓋登入畫面或應用程式內容
             loader.classList.toggle('hidden-content', !show);
-            // 避免點擊，但只在 app-content 顯示時才降低透明度
-            if (!loginScreen.classList.contains('hidden-content')) return;
             appContent.classList.toggle('opacity-50', show);
+            console.log(`[LOAD STATUS] Loader is now: ${show ? 'VISIBLE' : 'HIDDEN'}`);
         }
 
         function resetForm() {
@@ -186,10 +187,11 @@
             document.querySelectorAll('#targets-container input:checked').forEach(cb => cb.checked = false);
         }
 
-        // --- 登入/登出邏輯 (略) ---
+        // --- 登入/登出邏輯 ---
         
         googleLoginBtn.addEventListener('click', async () => {
             loginStatus.textContent = '登入中...';
+            // 由於 onAuthStateChanged 會自動處理 UI 顯示 Loader，這裡不需要重複呼叫 showLoader(true)
             try {
                 provider.setCustomParameters({
                     'hd': 'tcsh.hlc.edu.tw' 
@@ -215,6 +217,7 @@
                 await signOut(auth);
             } catch (error) {
                 console.error("登出失敗:", error);
+                showLoader(false);
             }
         });
 
@@ -222,8 +225,10 @@
             if (user) {
                 loginScreen.classList.add('hidden-content');
                 appContent.classList.remove('hidden-content');
-                showLoader(true);
+                // 登入後立即顯示載入畫面，直到資料載入完成
+                showLoader(true); 
                 if (!authReady) {
+                    // 確保只在首次登入時初始化監聽器
                     initializeFirestoreListeners();
                     authReady = true;
                 }
@@ -231,7 +236,7 @@
                 loginScreen.classList.remove('hidden-content');
                 appContent.classList.add('hidden-content');
                 // 重設載入狀態，準備下次登入
-                initialLoads = [false, false, false];
+                initialLoads.fill(false);
                 showLoader(false);
                 authReady = false;
             }
@@ -243,23 +248,36 @@
         const checkInitialLoad = () => {
             // 確認所有監聽器都已收到首次快照
             if (initialLoads.every(Boolean)) {
+                console.log("[LOAD STATUS] ALL initial loads completed.");
                 showLoader(false); // 成功解除載入畫面鎖定
+            } else {
+                console.log(`[LOAD STATUS] Still waiting for: ${initialLoads.map((v, i) => v ? null : i).filter(i => i !== null).join(', ')}`);
             }
         };
 
+        /**
+         * 處理 onSnapshot 錯誤，並確保載入狀態被標記為 true
+         * @param {number} index - initialLoads 數組中的索引
+         * @param {Error} error - 錯誤對象
+         * @param {string} collectionName - 集合名稱
+         */
         function handleSnapshotError(index, error, collectionName) {
-            console.error(`@firebase/firestore: ${collectionName} 監聽錯誤:`, error);
+            console.error(`@firebase/firestore: ${collectionName} 監聽錯誤 (Index ${index}):`, error);
+            
             // 關鍵修正：確保錯誤時也標記為已載入，防止載入畫面卡住
             if (!initialLoads[index]) {
                 initialLoads[index] = true;
-                // 嘗試將錯誤訊息顯示在目標容器中
+                
+                // 嘗試將錯誤訊息顯示在相關容器中
+                const errorMessage = `載入失敗: ${error.code}. 請檢查 Firestore 權限。`;
                 if (collectionName === 'classes') {
-                    targetsContainer.innerHTML = `<p class="text-red-500">無法載入班級資料：${error.code}</p>`;
+                    targetsContainer.innerHTML = `<p class="text-red-500">${errorMessage}</p>`;
                 } else if (collectionName === 'units') {
-                    departmentSelect.innerHTML = `<option value="">載入失敗</option>`;
+                    departmentSelect.innerHTML = `<option value="">${errorMessage}</option>`;
                 } else if (collectionName === 'messages') {
-                    messageListContainer.innerHTML = `<p class="text-red-500">無法載入訊息列表：${error.code}</p>`;
+                    messageListContainer.innerHTML = `<p class="text-red-500">${errorMessage}</p>`;
                 }
+                
                 checkInitialLoad();
             }
         }
@@ -268,16 +286,19 @@
             // 監聽發布單位 (0)
             onSnapshot(query(collection(db, "units"), orderBy("name")), snapshot => {
                 renderUnits(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                if (!initialLoads[0]) { initialLoads[0] = true; checkInitialLoad(); }
+                if (!initialLoads[0]) { 
+                    initialLoads[0] = true; 
+                    console.log("[LOAD STATUS] Units (0) loaded successfully.");
+                    checkInitialLoad(); 
+                }
             }, (error) => {
-                 // 這是第一個也是主要的權限檢查，直接踢回登入畫面並提示
+                // 如果是 units 權限問題，強制登出並提示，這通常是系統級別的錯誤
                 if (error.code === 'permission-denied') {
                     loginStatus.textContent = "警告：您的帳號權限不足，請聯繫超級管理員授權。";
                     loginScreen.classList.remove('hidden-content');
                     appContent.classList.add('hidden-content');
-                    // 為了防止 loader lock，即使主錯誤也確保 loader 關閉
-                    showLoader(false); 
                     auth.signOut(); // 強制登出
+                    showLoader(false); // 確保在登出前解除鎖定
                 } else {
                     handleSnapshotError(0, error, 'units');
                 }
@@ -286,7 +307,11 @@
             // 監聽班級列表 (1)
             onSnapshot(query(collection(db, "classes")), snapshot => {
                 renderClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                if (!initialLoads[1]) { initialLoads[1] = true; checkInitialLoad(); }
+                if (!initialLoads[1]) { 
+                    initialLoads[1] = true; 
+                    console.log("[LOAD STATUS] Classes (1) loaded successfully.");
+                    checkInitialLoad(); 
+                }
             }, (error) => {
                 handleSnapshotError(1, error, 'classes');
             });
@@ -294,16 +319,24 @@
             // 監聽已發布訊息 (2)
             onSnapshot(query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(50)), snapshot => {
                 renderMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                if (!initialLoads[2]) { initialLoads[2] = true; checkInitialLoad(); }
+                if (!initialLoads[2]) { 
+                    initialLoads[2] = true; 
+                    console.log("[LOAD STATUS] Messages (2) loaded successfully.");
+                    checkInitialLoad(); 
+                }
             }, (error) => {
                 handleSnapshotError(2, error, 'messages');
             });
         }
         
-        // --- 渲染功能 (保持不變) ---
+        // --- 渲染功能 (略) ---
 
         function renderUnits(units) {
-            departmentSelect.innerHTML = units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+            if (units.length === 0) {
+                departmentSelect.innerHTML = `<option value="">無發布單位 (請新增)</option>`;
+            } else {
+                departmentSelect.innerHTML = units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+            }
             unitListEditor.innerHTML = units.map(u => `
                 <li class="unit-list-item">
                     <span>${u.name}</span>
@@ -317,8 +350,8 @@
         function renderClasses(classes) {
             targetsContainer.innerHTML = '';
             
-            if (!classes || !Array.isArray(classes)) {
-                targetsContainer.innerHTML = '<p class="text-red-500">班級資料載入失敗或無資料。</p>';
+            if (!classes || !Array.isArray(classes) || classes.length === 0) {
+                targetsContainer.innerHTML = '<p class="text-red-500">班級資料為空或載入失敗。請確認資料庫中是否存在 classes 集合的資料。</p>';
                 return;
             }
 
@@ -361,7 +394,7 @@
                     .sort((a, b) => a.shortName.localeCompare(b.shortName, 'zh-Hant'))
                     .map(c => `
                         <label class="target-class-item flex items-center cursor-pointer" title="${c.originalName}">
-                            <input type="checkbox" value="${c.id}" class="mr-1 class-check"> ${c.shortName}
+                            <input type="checkbox" value="${c.originalName}" class="mr-1 class-check"> ${c.shortName}
                         </label>
                     `).join('');
                 
@@ -407,7 +440,7 @@
             }).join('');
         }
         
-        // --- 表單與 CRUD 事件監聽 (保持不變) ---
+        // --- 表單與 CRUD 事件監聽 (略) ---
         
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -471,6 +504,7 @@
             if (unitName) {
                 showLoader(true);
                 try {
+                    // 使用單位名稱作為 ID
                     await setDoc(doc(db, "units", unitName), { name: unitName });
                     newUnitNameInput.value = '';
                 } catch(error) {
@@ -487,7 +521,6 @@
             
             // 刪除單位
             if (target.matches('.delete-unit-btn')) {
-                // 使用自定義模態框代替 window.confirm
                 if (confirm('確定要刪除這個單位嗎？')) { 
                     showLoader(true);
                     try {
@@ -517,7 +550,8 @@
                         
                         document.querySelectorAll('#targets-container .class-check').forEach(cb => {
                             if (msg.targetClasses && Array.isArray(msg.targetClasses)) {
-                                cb.checked = msg.targetClasses.includes(cb.value);
+                                // 這裡使用 value 是班級名稱
+                                cb.checked = msg.targetClasses.includes(cb.value); 
                             } else {
                                 cb.checked = false;
                             }
@@ -533,7 +567,6 @@
             
             // 刪除訊息 (設為立即過期)
             if (target.matches('.delete-btn')) {
-                // 使用自定義模態框代替 window.confirm
                 if (confirm('確定要刪除（使此訊息立即過期）嗎？')) {
                     showLoader(true);
                     try {
