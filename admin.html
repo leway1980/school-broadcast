@@ -3,77 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>校園廣播系統 - 行政管理後台</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>班級電子佈告欄</title>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; }
-        .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem; }
-        .unit-management { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out; }
-        .unit-management.expanded { max-height: 500px; }
+        /* CSS 樣式與之前版本相同 */
+        :root {
+            --board-bg: #013220; --card-bg: #02402c; --text-color: #ecf0f1;
+            --title-color: #f1c40f; --link-color: #ffcc66; --border-color: #7f8c8d;
+            --urgent-bg: #8B0000;
+        }
+        body, html { margin: 0; padding: 0; background-color: var(--board-bg); font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; color: var(--text-color); }
+        #header { background-color: var(--board-bg); padding: 1rem 2rem; border-bottom: 2px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+        #class-title { margin: 0; font-size: 2rem; color: var(--title-color); }
+        #clock { font-size: 1.8rem; color: var(--title-color); font-weight: bold; }
+        #main-container { padding: 2rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 2rem; }
+        .card { background-color: var(--card-bg); border: 2px solid var(--border-color); border-radius: 8px; box-shadow: 5px 5px 10px rgba(0,0,0,0.3); padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; height: 180px; justify-content: space-between; position: relative; }
+        .card.urgent { background-color: var(--urgent-bg); border-color: var(--title-color); }
+        .card.read { opacity: 0.7; }
+        .unread-indicator { position: absolute; top: 10px; left: 10px; width: 10px; height: 10px; background-color: var(--title-color); border-radius: 50%; display: block; }
+        .card.read .unread-indicator { display: none; }
+        .card:hover { transform: translateY(-5px); box-shadow: 8px 8px 15px rgba(0,0,0,0.4); }
+        .card-main-content { font-size: 1.25rem; font-weight: bold; color: var(--title-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-department { font-size: 0.9rem; color: var(--text-color); margin: 1rem 0; }
+        .card-footer { margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; color: #bdc3c7; text-align: right; }
+        #modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
+        #modal-content { background-color: var(--card-bg); margin: auto; padding: 3rem; border: 2px solid var(--border-color); border-radius: 8px; width: 80%; max-width: 800px; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 20px rgba(0,0,0,0.5); position: relative; display: flex; flex-direction: column; }
+        #modal-close { position: absolute; top: 1rem; right: 1.5rem; color: var(--text-color); font-size: 2.5rem; font-weight: bold; cursor: pointer; }
+        .modal-message-content { font-size: 1.5rem; font-weight: bold; color: var(--title-color); line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; flex-grow: 1; margin-bottom: 1.5rem; }
+        .modal-message-content a { color: var(--link-color); text-decoration: underline; }
+        .modal-department-footer { font-size: 1rem; color: var(--text-color); text-align: right; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+        #loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-
-    <!-- 登入畫面 -->
-    <div id="login-container" class="text-center p-8 bg-white rounded-lg shadow-xl">
-        <h1 class="text-2xl font-bold mb-4">校園廣播系統</h1>
-        <p class="text-gray-600 mb-6">請使用學校 G Suite 帳號登入</p>
-        <button id="login-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center mx-auto">
-            <svg class="w-6 h-6 mr-2" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.82l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
-            使用 Google 帳號登入
-        </button>
+<body>
+    <header id="header">
+        <h1 id="class-title"></h1>
+        <div id="clock"></div>
+    </header>
+    <div id="loader">載入公告中...</div>
+    <main id="main-container"></main>
+    <div id="modal">
+        <div id="modal-content">
+            <span id="modal-close">&times;</span>
+            <div id="modal-body"></div>
+        </div>
     </div>
 
-    <!-- 主操作畫面 -->
-    <main id="main-container" class="w-full max-w-7xl mx-auto p-8 bg-white rounded-lg shadow-xl hidden">
-        <div class="flex justify-between items-center mb-6 border-b pb-4">
-            <div><h1 class="text-3xl font-bold text-gray-800">行政管理後台</h1><p id="user-info" class="text-sm text-gray-500 mt-1"></p></div>
-            <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">登出</button>
-        </div>
-        <div id="permission-denied" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6"><p class="font-bold">權限不足</p><p>您的帳號不在管理員名單中。</p></div>
-        <div id="app-content" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <form id="broadcast-form" class="space-y-6">
-                 <input type="hidden" id="editing-message-id">
-                 <div>
-                    <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
-                    <div class="flex gap-2 mt-1">
-                        <select id="unit-select" class="block w-full border-gray-300 rounded-md shadow-sm"></select>
-                        <button type="button" id="toggle-unit-management" class="flex-shrink-0 bg-gray-200 px-3 rounded-md hover:bg-gray-300">管理</button>
-                    </div>
-                </div>
-                <div id="unit-management" class="unit-management mt-2 p-4 border rounded-md bg-gray-50 space-y-2"></div>
-                 <div>
-                    <label class="block text-sm font-medium text-gray-700">廣播對象</label>
-                    <div class="flex items-center space-x-4 mt-2 mb-2">
-                         <button type="button" id="select-all-btn" class="text-sm text-blue-600 hover:underline">全選</button>
-                         <button type="button" id="deselect-all-btn" class="text-sm text-blue-600 hover:underline">取消全選</button>
-                    </div>
-                    <div id="class-checkbox-container" class="class-grid p-4 border rounded-md max-h-48 overflow-y-auto"></div>
-                </div>
-                <div>
-                    <label for="message-content" class="block text-sm font-medium text-gray-700">訊息內容</label>
-                    <textarea id="message-content" rows="5" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"></textarea>
-                </div>
-                <div class="flex justify-between items-center">
-                    <div>
-                        <label class="text-sm font-medium text-gray-700">持續時間</label>
-                        <fieldset class="mt-2 flex space-x-4"><label><input type="radio" name="duration" value="8" checked> 8小時</label><label><input type="radio" name="duration" value="24"> 1天</label><label><input type="radio" name="duration" value="48"> 2天</label></fieldset>
-                    </div>
-                    <div class="flex items-center"><input id="is-emergency" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded"><label for="is-emergency" class="ml-2 font-medium text-gray-700">設為緊急訊息</label></div>
-                </div>
-                <div><button type="submit" class="w-full py-3 px-4 rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">發布/更新公告</button></div>
-            </form>
-            <div class="space-y-4">
-                <h2 class="text-xl font-bold text-gray-800 border-b pb-2">目前有效公告</h2>
-                <div id="message-list-container" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2"></div>
-            </div>
-        </div>
-    </main>
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, addDoc, updateDoc, setDoc, deleteDoc, serverTimestamp, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-        
+        import { initializeApp } from "[https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js](https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js)";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs } from "[https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js](https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js)";
+
+        // Firebase 設定已為您填入
         const firebaseConfig = {
             apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
             authDomain: "school-broadcast-system.firebaseapp.com",
@@ -83,184 +62,184 @@
             appId: "1:1057938447303:web:81042cfb29f24bc4ff97e2",
             measurementId: "G-LLRPYTW9QX"
         };
+
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ 'hd': 'tcsh.hlc.edu.tw' });
 
-        const ui = {
-            loginContainer: document.getElementById('login-container'),
-            mainContainer: document.getElementById('main-container'),
-            loginBtn: document.getElementById('login-btn'),
-            logoutBtn: document.getElementById('logout-btn'),
-            userInfo: document.getElementById('user-info'),
-            appContent: document.getElementById('app-content'),
-            permissionDenied: document.getElementById('permission-denied'),
-            broadcastForm: document.getElementById('broadcast-form'),
-            editingMessageId: document.getElementById('editing-message-id'),
-            unitSelect: document.getElementById('unit-select'),
-            toggleUnitManagement: document.getElementById('toggle-unit-management'),
-            unitManagement: document.getElementById('unit-management'),
-            classCheckboxContainer: document.getElementById('class-checkbox-container'),
-            selectAllBtn: document.getElementById('select-all-btn'),
-            deselectAllBtn: document.getElementById('deselect-all-btn'),
-            messageContent: document.getElementById('message-content'),
-            isEmergency: document.getElementById('is-emergency'),
-            messageListContainer: document.getElementById('message-list-container')
-        };
+        // --- DOM Elements ---
+        const container = document.getElementById('main-container');
+        const loader = document.getElementById('loader');
+        const modal = document.getElementById('modal');
+        const modalBody = document.getElementById('modal-body');
+        const closeModal = document.getElementById('modal-close');
+        const clockElement = document.getElementById('clock');
+        const classTitleElement = document.getElementById('class-title');
         
-        let unitsUnsubscribe = null;
-        let classesUnsubscribe = null;
-        let messagesUnsubscribe = null;
+        // --- State Management ---
+        const readMessageIds = new Set(); // << 新增：用來“記憶”已讀訊息的清單
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let isFirstLoad = true; // << 用來判斷是否為首次載入
 
-        onAuthStateChanged(auth, user => {
-            if (user && user.email.endsWith('@tcsh.hlc.edu.tw')) {
-                ui.loginContainer.classList.add('hidden');
-                ui.mainContainer.classList.remove('hidden');
-                ui.userInfo.textContent = `${user.displayName} (${user.email})`;
-                checkAdminPermission(user.email);
-            } else {
-                ui.mainContainer.classList.add('hidden');
-                ui.loginContainer.classList.remove('hidden');
-                if (unitsUnsubscribe) unitsUnsubscribe();
-                if (classesUnsubscribe) classesUnsubscribe();
-                if (messagesUnsubscribe) messagesUnsubscribe();
-            }
-        });
-
-        async function checkAdminPermission(email) {
-            const docRef = doc(db, "admins", email);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                ui.appContent.classList.remove('hidden');
-                ui.permissionDenied.classList.add('hidden');
-                listenToData();
-            } else {
-                ui.appContent.classList.add('hidden');
-                ui.permissionDenied.classList.remove('hidden');
-            }
+        // --- Functions ---
+        
+        function updateClock() {
+            const now = new Date();
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            clockElement.textContent = `${now.getMonth() + 1}/${now.getDate()} (${weekdays[now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         }
         
-        function listenToData() {
-            listenToUnits();
-            listenToClasses();
-            listenToMessages();
+        function playNotificationSound() {
+            // 只有當使用者與頁面互動後，音效才可能播放成功
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
         }
 
-        function listenToUnits() {
-            if (unitsUnsubscribe) unitsUnsubscribe();
-            unitsUnsubscribe = onSnapshot(query(collection(db, "units"), orderBy("name")), snapshot => {
-                const units = [];
-                snapshot.forEach(doc => units.push({ id: doc.id, ...doc.data() }));
-                renderUnits(units);
-            });
-        }
+        function listenToMessages(classCode) {
+            const now = new Date();
+            const q = query(
+                collection(db, "messages"),
+                where("expiresAt", ">", now),
+                where("targetClasses", "array-contains-any", ["All", classCode]),
+                orderBy("expiresAt", "desc")
+            );
 
-        function renderUnits(units) {
-            ui.unitSelect.innerHTML = '<option value="">請選擇</option>';
-            units.forEach(u => ui.unitSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`);
-            
-            ui.unitManagement.innerHTML = '<div>';
-            units.forEach(u => {
-                ui.unitManagement.innerHTML += `<div class="flex items-center gap-2"><input class="flex-grow border rounded px-2" value="${u.name}" data-id="${u.id}"><button data-id="${u.id}" class="unit-delete-btn text-red-500">✖</button></div>`;
-            });
-            ui.unitManagement.innerHTML += '</div><button type="button" id="unit-add-btn" class="text-blue-500 mt-2">✚ 新增單位</button><button type="button" id="unit-save-btn" class="bg-green-500 text-white px-3 py-1 rounded ml-4">儲存變更</button>';
-        }
-
-        function listenToClasses() {
-            if (classesUnsubscribe) classesUnsubscribe();
-            classesUnsubscribe = onSnapshot(query(collection(db, "class_map"), orderBy("classId")), snapshot => {
-                ui.classCheckboxContainer.innerHTML = '<div class="flex items-center"><input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4"><label for="class-All" class="ml-2 font-bold">全校廣播</label></div>';
-                snapshot.forEach(doc => {
-                    const c = doc.data();
-                    ui.classCheckboxContainer.innerHTML += `<div class="flex items-center"><input id="class-${c.classId}" name="targetClasses" value="${c.classId}" type="checkbox"><label for="class-${c.classId}" class="ml-2">${c.name}</label></div>`;
+            onSnapshot(q, (snapshot) => {
+                loader.style.display = 'none';
+                
+                // --- 修正後的音效與渲染邏輯 ---
+                let newMessagesFound = false;
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added" && !isFirstLoad) {
+                        newMessagesFound = true;
+                    }
                 });
-            });
-        }
-        
-        function listenToMessages() {
-            if (messagesUnsubscribe) messagesUnsubscribe();
-            const q = query(collection(db, "messages"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "desc"));
-            messagesUnsubscribe = onSnapshot(q, snapshot => {
-                ui.messageListContainer.innerHTML = '';
-                if(snapshot.empty) ui.messageListContainer.innerHTML = '<p class="text-gray-500">目前沒有有效公告。</p>';
-                snapshot.forEach(doc => renderMessageCard(doc.id, doc.data()));
-            });
-        }
-        
-        function renderMessageCard(id, data) {
-            const remaining = Math.round((data.expiresAt.toDate() - new Date()) / 3600000);
-            const targets = data.targetClasses.includes("All") ? "全校" : data.targetClasses.join(', ');
-            ui.messageListContainer.innerHTML += `
-                <div class="border rounded-lg p-3 ${data.isEmergency ? 'bg-red-50' : ''}">
-                    <p class="font-bold">${data.content}</p>
-                    <p class="text-sm text-gray-600">To: ${targets} | By: ${data.unit}</p>
-                    <p class="text-xs text-gray-500">剩餘 ${remaining} 小時</p>
-                    <div class="mt-2 text-right"><button data-id="${id}" class="msg-edit-btn text-blue-500 text-sm mr-2">編輯</button><button data-id="${id}" class="msg-delete-btn text-red-500 text-sm">刪除</button></div>
-                </div>`;
-        }
-        
-        // Event Listeners
-        ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
-        ui.logoutBtn.addEventListener('click', () => signOut(auth));
-        ui.toggleUnitManagement.addEventListener('click', () => ui.unitManagement.classList.toggle('expanded'));
-        ui.selectAllBtn.addEventListener('click', () => document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = true));
-        ui.deselectAllBtn.addEventListener('click', () => document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false));
 
-        document.addEventListener('click', async e => {
-             if (e.target.id === 'unit-save-btn') {
-                const batch = writeBatch(db);
-                ui.unitManagement.querySelectorAll('input').forEach(input => {
-                    batch.set(doc(db, "units", input.dataset.id), { name: input.value });
-                });
-                await batch.commit();
-                alert('單位已更新');
-            }
-            if (e.target.id === 'unit-add-btn') {
-                const name = prompt('請輸入新單位名稱:');
-                if(name) await addDoc(collection(db, "units"), { name });
-            }
-            if (e.target.classList.contains('unit-delete-btn')) {
-                if(confirm('確定刪除此單位?')) await deleteDoc(doc(db, "units", e.target.dataset.id));
-            }
-            if (e.target.classList.contains('msg-delete-btn')) {
-                if(confirm('確定刪除此公告?')) await updateDoc(doc(db, "messages", e.target.dataset.id), { expiresAt: new Date() });
-            }
-            if (e.target.classList.contains('msg-edit-btn')) {
-                const docSnap = await getDoc(doc(db, "messages", e.target.dataset.id));
-                const data = docSnap.data();
-                ui.editingMessageId.value = docSnap.id;
-                ui.unitSelect.value = data.unit;
-                ui.messageContent.value = data.content;
-                ui.isEmergency.checked = data.isEmergency;
-                document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = data.targetClasses.includes(cb.value));
-            }
-        });
+                if (newMessagesFound) {
+                    playNotificationSound();
+                }
+
+                // 重新渲染整個列表，以確保順序正確
+                renderAllMessages(snapshot.docs);
+
+                isFirstLoad = false;
+
+            }, (error) => {
+                console.error("讀取公告時發生錯誤: ", error);
+                loader.style.display = 'none';
+                container.innerHTML = `<p style="text-align: center;">讀取公告失敗: ${error.message}</p>`;
+            });
+        }
         
-        ui.broadcastForm.addEventListener('submit', async e => {
-            e.preventDefault();
-            const message = {
-                unit: ui.unitSelect.value,
-                content: ui.messageContent.value,
-                isEmergency: ui.isEmergency.checked,
-                targetClasses: Array.from(document.querySelectorAll('input[name="targetClasses"]:checked')).map(cb => cb.value),
-                author: { name: auth.currentUser.displayName, email: auth.currentUser.email },
-                createdAt: serverTimestamp(),
-                expiresAt: new Date(Date.now() + Number(document.querySelector('input[name="duration"]:checked').value) * 3600000)
-            };
-            if(message.targetClasses.length === 0 || !message.unit || !message.content) return alert('所有欄位皆必填');
-            
-            if (ui.editingMessageId.value) {
-                await updateDoc(doc(db, "messages", ui.editingMessageId.value), message);
-            } else {
-                await addDoc(collection(db, "messages"), message);
+        function renderAllMessages(docs) {
+            container.innerHTML = '';
+            if (!docs || docs.length === 0) {
+                container.innerHTML = '<p style="text-align: center; width: 100%; font-size: 1.2rem;">目前沒有公告</p>';
+                return;
             }
-            alert('公告已發布/更新');
-            ui.broadcastForm.reset();
-            ui.deselectAllBtn.click();
-        });
+            docs.forEach(doc => {
+                const msg = { id: doc.id, ...doc.data() };
+                const card = createMessageCard(msg);
+                container.appendChild(card);
+            });
+        }
+        
+        function createMessageCard(msg) {
+            const card = document.createElement('div');
+            card.className = `card ${msg.isEmergency ? 'urgent' : ''}`;
+            
+            // --- 修正後的已讀狀態判斷 ---
+            if (readMessageIds.has(msg.id)) {
+                card.classList.add('read');
+            }
+
+            const createdAt = msg.createdAt ? msg.createdAt.toDate().toLocaleString('zh-TW') : 'N/A';
+            const expiresAt = msg.expiresAt ? msg.expiresAt.toDate().toLocaleString('zh-TW') : 'N/A';
+            
+            card.innerHTML = `
+                <div class="unread-indicator"></div>
+                <div>
+                    <div class="card-main-content" title="${escapeHTML(msg.content)}">${escapeHTML(msg.content)}</div>
+                    <div class="card-department">${escapeHTML(msg.unit)}</div>
+                </div>
+                <div class="card-footer">
+                    <div>發布: ${createdAt}</div>
+                    <div>截止: ${expiresAt}</div>
+                </div>
+            `;
+            
+            card.addEventListener('click', () => {
+                showModal(msg);
+                card.classList.add('read');
+                readMessageIds.add(msg.id); // << 將已讀 ID 加入記憶清單
+            });
+            return card;
+        }
+
+        function showModal(msg) {
+            const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+            const contentWithLinks = escapeHTML(msg.content).replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+            modalBody.innerHTML = `
+                <div class="modal-message-content">${contentWithLinks}</div>
+                <div class="modal-department-footer">${escapeHTML(msg.unit)}</div>
+            `;
+            modal.style.display = 'flex';
+        }
+        
+        function escapeHTML(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/[&<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[m]);
+        }
+
+        async function main() {
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            const params = new URLSearchParams(window.location.search);
+            const classCode = params.get('class');
+
+            if (!classCode) {
+                loader.style.display = 'none';
+                classTitleElement.textContent = "未指定班級";
+                container.innerHTML = '<p style="text-align: center;">請在網址後方加上 `?class=您的班級代號` 來查看公告。</p>';
+                return;
+            }
+            
+            // 從 Firestore 動態獲取班級名稱
+            const q = query(collection(db, "class_map"), where("classId", "==", classCode));
+            const querySnapshot = await getDocs(q);
+            
+            let className = '電子佈告欄';
+            if (!querySnapshot.empty) {
+                className = querySnapshot.docs[0].data().name;
+            }
+            classTitleElement.textContent = className;
+            
+            listenToMessages(classCode);
+        }
+
+        // --- Event Listeners ---
+        closeModal.onclick = () => { modal.style.display = 'none'; }
+        window.onclick = (event) => { if (event.target == modal) { modal.style.display = 'none'; } }
+        // 解決瀏覽器音效自動播放政策
+        document.body.addEventListener('click', () => {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }, { once: true });
+
+
+        main();
     </script>
 </body>
 </html>
-
