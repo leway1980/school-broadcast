@@ -127,10 +127,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, doc, updateDoc, getDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        // 匯入 Auth 模組和 Google 登入所需的方法
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         
-        // 由於您使用了單一的 FirebaseConfig，我們將直接使用它
         const firebaseConfig = {
             apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
             authDomain: "school-broadcast-system.firebaseapp.com",
@@ -144,7 +142,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app); 
-        const provider = new GoogleAuthProvider(); // Google 登入提供者
+        const provider = new GoogleAuthProvider(); 
 
         // --- DOM 元素 ---
         const loginScreen = document.getElementById('login-screen');
@@ -168,11 +166,15 @@
         const addUnitBtn = document.getElementById('addUnitBtn');
         const newUnitNameInput = document.getElementById('new-unit-name');
         
-        let initialLoads = [false, false, false];
-        let authReady = false; // 追蹤身份驗證是否準備好
+        // 追蹤 [units, classes, messages] 的首次載入狀態
+        let initialLoads = [false, false, false]; 
+        let authReady = false; 
 
         function showLoader(show) {
+            // 確保載入畫面能覆蓋登入畫面或應用程式內容
             loader.classList.toggle('hidden-content', !show);
+            // 避免點擊，但只在 app-content 顯示時才降低透明度
+            if (!loginScreen.classList.contains('hidden-content')) return;
             appContent.classList.toggle('opacity-50', show);
         }
 
@@ -184,26 +186,24 @@
             document.querySelectorAll('#targets-container input:checked').forEach(cb => cb.checked = false);
         }
 
-        // --- 登入/登出邏輯 ---
-
+        // --- 登入/登出邏輯 (略) ---
+        
         googleLoginBtn.addEventListener('click', async () => {
             loginStatus.textContent = '登入中...';
             try {
-                // 登入時可選：設定只接受學校網域的 Email
                 provider.setCustomParameters({
-                    'hd': 'tcsh.hlc.edu.tw' // 這是您規則中的網域
+                    'hd': 'tcsh.hlc.edu.tw' 
                 });
-
-                const result = await signInWithPopup(auth, provider);
-                // 登入成功會由 onAuthStateChanged 處理 UI 轉換
+                await signInWithPopup(auth, provider);
             } catch (error) {
                 console.error("Google 登入失敗:", error);
-                // 處理常見錯誤，例如使用者關閉彈跳視窗、或 Email 網域不符
                 let errorMessage = '登入失敗，請檢查您的 Google 帳號。';
                 if (error.code === 'auth/popup-closed-by-user') {
                     errorMessage = '登入視窗已關閉。';
                 } else if (error.code === 'auth/unauthorized-domain') {
                     errorMessage = '帳號網域不符，請使用學校 Google 帳號。';
+                } else if (error.code === 'auth/access-denied') {
+                    errorMessage = '存取遭拒，請確認您的權限設定。';
                 }
                 loginStatus.textContent = errorMessage;
             }
@@ -215,74 +215,88 @@
                 await signOut(auth);
             } catch (error) {
                 console.error("登出失敗:", error);
-                // 由於登出後會重新導向登入畫面，這裡簡單處理
             }
         });
 
-        // 監聽身份狀態變化
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // 使用者已登入 (無論是否為 admin)
                 loginScreen.classList.add('hidden-content');
                 appContent.classList.remove('hidden-content');
                 showLoader(true);
-                // 啟動 Firestore 監聽器
                 if (!authReady) {
                     initializeFirestoreListeners();
                     authReady = true;
                 }
             } else {
-                // 使用者未登入
                 loginScreen.classList.remove('hidden-content');
                 appContent.classList.add('hidden-content');
+                // 重設載入狀態，準備下次登入
+                initialLoads = [false, false, false];
                 showLoader(false);
                 authReady = false;
             }
         });
 
 
-        // --- Firestore 初始化與監聽 (與之前類似，但只在登入後執行) ---
-
+        // --- Firestore 狀態處理 ---
+        
         const checkInitialLoad = () => {
             // 確認所有監聽器都已收到首次快照
             if (initialLoads.every(Boolean)) {
-                showLoader(false);
+                showLoader(false); // 成功解除載入畫面鎖定
             }
         };
 
+        function handleSnapshotError(index, error, collectionName) {
+            console.error(`@firebase/firestore: ${collectionName} 監聽錯誤:`, error);
+            // 關鍵修正：確保錯誤時也標記為已載入，防止載入畫面卡住
+            if (!initialLoads[index]) {
+                initialLoads[index] = true;
+                // 嘗試將錯誤訊息顯示在目標容器中
+                if (collectionName === 'classes') {
+                    targetsContainer.innerHTML = `<p class="text-red-500">無法載入班級資料：${error.code}</p>`;
+                } else if (collectionName === 'units') {
+                    departmentSelect.innerHTML = `<option value="">載入失敗</option>`;
+                } else if (collectionName === 'messages') {
+                    messageListContainer.innerHTML = `<p class="text-red-500">無法載入訊息列表：${error.code}</p>`;
+                }
+                checkInitialLoad();
+            }
+        }
+
         async function initializeFirestoreListeners() {
-            // 此時 user 必定已登入 (onAuthStateChanged 確保)
-            
-            // 監聽發布單位
+            // 監聽發布單位 (0)
             onSnapshot(query(collection(db, "units"), orderBy("name")), snapshot => {
-                // 假設這個讀取操作會成功，因為 user 已登入
                 renderUnits(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 if (!initialLoads[0]) { initialLoads[0] = true; checkInitialLoad(); }
             }, (error) => {
-                 // 這裡捕獲權限錯誤，並給出明確提示
+                 // 這是第一個也是主要的權限檢查，直接踢回登入畫面並提示
                 if (error.code === 'permission-denied') {
                     loginStatus.textContent = "警告：您的帳號權限不足，請聯繫超級管理員授權。";
                     loginScreen.classList.remove('hidden-content');
                     appContent.classList.add('hidden-content');
-                    showLoader(false);
+                    // 為了防止 loader lock，即使主錯誤也確保 loader 關閉
+                    showLoader(false); 
+                    auth.signOut(); // 強制登出
+                } else {
+                    handleSnapshotError(0, error, 'units');
                 }
-                console.error("@firebase/firestore: units 監聽錯誤:", error);
             });
 
-            // 監聽班級列表
+            // 監聽班級列表 (1)
             onSnapshot(query(collection(db, "classes")), snapshot => {
                 renderClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 if (!initialLoads[1]) { initialLoads[1] = true; checkInitialLoad(); }
             }, (error) => {
-                console.error("@firebase/firestore: classes 監聽錯誤:", error);
+                handleSnapshotError(1, error, 'classes');
             });
 
-            // 監聽已發布訊息
+            // 監聽已發布訊息 (2)
             onSnapshot(query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(50)), snapshot => {
                 renderMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 if (!initialLoads[2]) { initialLoads[2] = true; checkInitialLoad(); }
             }, (error) => {
-                console.error("@firebase/firestore: messages 監聽錯誤:", error);
+                handleSnapshotError(2, error, 'messages');
             });
         }
         
@@ -304,7 +318,7 @@
             targetsContainer.innerHTML = '';
             
             if (!classes || !Array.isArray(classes)) {
-                targetsContainer.innerHTML = '<p>班級資料載入失敗或無資料。</p>';
+                targetsContainer.innerHTML = '<p class="text-red-500">班級資料載入失敗或無資料。</p>';
                 return;
             }
 
@@ -365,11 +379,12 @@
             }
             messageListContainer.innerHTML = messages.map(msg => {
                 const now = new Date();
-                const expiry = msg.expiresAt ? msg.expiresAt.toDate() : new Date(0);
+                // 處理 Firestore Timestamp 轉換
+                const expiry = msg.expiresAt && msg.expiresAt.toDate ? msg.expiresAt.toDate() : new Date(0);
                 const isExpired = expiry < now;
                 const diffHours = isExpired ? 0 : Math.round((expiry - now) / (1000 * 60 * 60));
                 const status = msg.isEmergency ? `<span class="text-red-500 font-bold">緊急</span>` : '普通';
-                const createdTime = msg.createdAt ? msg.createdAt.toDate().toLocaleString('zh-TW') : 'N/A';
+                const createdTime = msg.createdAt && msg.createdAt.toDate ? msg.createdAt.toDate().toLocaleString('zh-TW') : 'N/A';
 
                 return `
                 <div class="card ${isExpired ? 'opacity-50 bg-gray-200' : ''}">
@@ -472,8 +487,8 @@
             
             // 刪除單位
             if (target.matches('.delete-unit-btn')) {
-                const isConfirmed = window.confirm('確定要刪除這個單位嗎？');
-                if (isConfirmed) {
+                // 使用自定義模態框代替 window.confirm
+                if (confirm('確定要刪除這個單位嗎？')) { 
                     showLoader(true);
                     try {
                         await deleteDoc(doc(db, "units", target.dataset.id));
@@ -518,8 +533,8 @@
             
             // 刪除訊息 (設為立即過期)
             if (target.matches('.delete-btn')) {
-                const isConfirmed = window.confirm('確定要刪除（使此訊息立即過期）嗎？');
-                if (isConfirmed) {
+                // 使用自定義模態框代替 window.confirm
+                if (confirm('確定要刪除（使此訊息立即過期）嗎？')) {
                     showLoader(true);
                     try {
                         await updateDoc(doc(db, "messages", target.dataset.id), { expiresAt: new Date() });
