@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>班級電子佈告欄</title>
     <style>
-        /* CSS 樣式與之前版本相同 */
         :root {
             --board-bg: #013220; --card-bg: #02402c; --text-color: #ecf0f1;
             --title-color: #f1c40f; --link-color: #ffcc66; --border-color: #7f8c8d;
@@ -49,14 +48,9 @@
     </div>
 
     <script type="module">
-        // =================================================================
-        // 最終修正：確保以下網址為純粹的字串，
-        // 移除了所有會導致錯誤的 Markdown 格式。
-        // =================================================================
-        import { initializeApp } from "[https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js](https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js)";
-        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs } from "[https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js](https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js)";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-        // Firebase 設定已為您填入
         const firebaseConfig = {
             apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
             authDomain: "school-broadcast-system.firebaseapp.com",
@@ -70,7 +64,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- DOM Elements ---
         const container = document.getElementById('main-container');
         const loader = document.getElementById('loader');
         const modal = document.getElementById('modal');
@@ -79,12 +72,9 @@
         const clockElement = document.getElementById('clock');
         const classTitleElement = document.getElementById('class-title');
         
-        // --- State Management ---
-        const readMessageIds = new Set(); // << 新增：用來“記憶”已讀訊息的清單
+        const readMessageIds = new Set();
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        let isFirstLoad = true; // << 用來判断是否為首次載入
-
-        // --- Functions ---
+        let isFirstLoad = true;
         
         function updateClock() {
             const now = new Date();
@@ -93,9 +83,7 @@
         }
         
         function playNotificationSound() {
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
+            if (audioContext.state === 'suspended') audioContext.resume();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
             oscillator.connect(gainNode);
@@ -119,21 +107,14 @@
 
             onSnapshot(q, (snapshot) => {
                 loader.style.display = 'none';
-                
                 let newMessagesFound = false;
                 snapshot.docChanges().forEach((change) => {
-                    if (change.type === "added" && !isFirstLoad) {
-                        newMessagesFound = true;
-                    }
+                    if (change.type === "added" && !isFirstLoad) newMessagesFound = true;
                 });
 
-                if (newMessagesFound) {
-                    playNotificationSound();
-                }
-
+                if (newMessagesFound) playNotificationSound();
                 renderAllMessages(snapshot.docs);
                 isFirstLoad = false;
-
             }, (error) => {
                 console.error("讀取公告時發生錯誤: ", error);
                 loader.style.display = 'none';
@@ -157,11 +138,8 @@
         function createMessageCard(msg) {
             const card = document.createElement('div');
             card.className = `card ${msg.isEmergency ? 'urgent' : ''}`;
+            if (readMessageIds.has(msg.id)) card.classList.add('read');
             
-            if (readMessageIds.has(msg.id)) {
-                card.classList.add('read');
-            }
-
             const createdAt = msg.createdAt ? msg.createdAt.toDate().toLocaleString('zh-TW') : 'N/A';
             const expiresAt = msg.expiresAt ? msg.expiresAt.toDate().toLocaleString('zh-TW') : 'N/A';
             
@@ -216,27 +194,22 @@
             
             const q = query(collection(db, "class_map"), where("classId", "==", classCode));
             const querySnapshot = await getDocs(q);
-            
             let className = '電子佈告欄';
             if (!querySnapshot.empty) {
                 className = querySnapshot.docs[0].data().name;
             }
             classTitleElement.textContent = className;
-            
             listenToMessages(classCode);
         }
 
-        // --- Event Listeners ---
         closeModal.onclick = () => { modal.style.display = 'none'; }
         window.onclick = (event) => { if (event.target == modal) { modal.style.display = 'none'; } }
         document.body.addEventListener('click', () => {
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
+            if (audioContext.state === 'suspended') audioContext.resume();
         }, { once: true });
-
 
         main();
     </script>
 </body>
 </html>
+
