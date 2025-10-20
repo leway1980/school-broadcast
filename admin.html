@@ -45,6 +45,7 @@
         #message-list-container .card-status { font-size: 0.9rem; }
         #message-list-container .card-body { margin: 0.5rem 0; word-break: break-all; }
         #message-list-container .card-footer { font-size: 0.8rem; color: #6c757d; }
+        #message-list-container .card-actions button { margin-left: 0.5rem; }
         #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
     </style>
 </head>
@@ -150,14 +151,44 @@
             `).join('');
         }
 
+        // *** 修正後的 renderClasses 函式 ***
         function renderClasses(classes) {
             targetsContainer.innerHTML = '';
-            const groupedByGrade = classes.reduce((acc, curr) => {
+            
+            // 步驟 1: 處理資料，新增 grade 欄位和 shortName 欄位以適應現有結構
+            const processedClasses = classes.map(c => {
+                // 假設 c.name 格式為 "國X-Y班" 或 "國X-Y"
+                const parts = c.name.split('-');
+                let grade = '其他';
+                let shortName = c.name;
+
+                if (parts.length >= 2) {
+                    // 提取年級部分，例如 "國二"
+                    grade = parts[0].trim();
+                    // 提取班級簡稱，例如 "包容"
+                    shortName = parts[1].trim(); 
+                } else if (c.name.includes('國一') || c.name.includes('國二') || c.name.includes('國三')) {
+                    grade = c.name.substring(0, 2); // 簡單地取前兩個字作為年級
+                    shortName = c.name.substring(2).trim() || c.name;
+                }
+                
+                // 返回新物件，包含用於分組和顯示的欄位
+                return {
+                    id: c.id, // classId (Document ID) 用於 checkbox value
+                    grade: grade, // 修正後的年級 (e.g., "國二")
+                    shortName: shortName, // 修正後的簡稱 (e.g., "包容")
+                    originalName: c.name // 原始名稱，備用
+                };
+            });
+
+            // 步驟 2: 依據修正後的 grade 欄位進行分組
+            const groupedByGrade = processedClasses.reduce((acc, curr) => {
                 (acc[curr.grade] = acc[curr.grade] || []).push(curr);
                 return acc;
             }, {});
 
-            const gradeOrder = ["國一", "國二", "國三", "高一", "高二", "高三"];
+            // 步驟 3: 排序並渲染
+            const gradeOrder = ["國一", "國二", "國三", "高一", "高二", "高三", "其他"];
             const sortedGrades = Object.entries(groupedByGrade).sort(([a], [b]) => gradeOrder.indexOf(a) - gradeOrder.indexOf(b));
 
             for (const [grade, classItems] of sortedGrades) {
@@ -167,10 +198,11 @@
                 const classList = document.createElement('div');
                 classList.className = 'target-class-list';
                 classList.innerHTML = classItems
-                    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'))
+                    // 班級簡稱排序
+                    .sort((a, b) => a.shortName.localeCompare(b.shortName, 'zh-Hant'))
                     .map(c => `
-                        <label class="target-class-item flex items-center cursor-pointer">
-                            <input type="checkbox" value="${c.id}" class="mr-1 class-check"> ${c.name}
+                        <label class="target-class-item flex items-center cursor-pointer" title="${c.originalName}">
+                            <input type="checkbox" value="${c.id}" class="mr-1 class-check"> ${c.shortName}
                         </label>
                     `).join('');
                 
@@ -179,6 +211,8 @@
                 targetsContainer.appendChild(gradeBlock);
             }
         }
+        // *** 修正後的 renderClasses 函式結束 ***
+
 
         function renderMessages(messages) {
             if (!messages || messages.length === 0) {
@@ -271,6 +305,7 @@
         addUnitBtn.addEventListener('click', async () => {
             const unitName = newUnitNameInput.value.trim();
             if (unitName) {
+                // 使用單位名稱作為 Document ID
                 await setDoc(doc(db, "units", unitName), { name: unitName });
                 newUnitNameInput.value = '';
             }
@@ -282,6 +317,7 @@
             // 刪除單位
             if (target.matches('.delete-unit-btn')) {
                 if (confirm('確定要刪除這個單位嗎？')) {
+                    // 使用 data-id 作為 Document ID
                     await deleteDoc(doc(db, "units", target.dataset.id));
                 }
             }
@@ -307,6 +343,7 @@
             // 刪除訊息
             if (target.matches('.delete-btn')) {
                 if (confirm('確定要刪除（使此訊息立即過期）嗎？')) {
+                    // 將 expiresAt 設為當下時間，讓訊息立即過期
                     await updateDoc(doc(db, "messages", target.dataset.id), { expiresAt: new Date() });
                 }
             }
@@ -326,17 +363,23 @@
                 loader.style.display = 'none';
             }
         };
-
+        
+        // 監聽發布單位
         onSnapshot(query(collection(db, "units"), orderBy("name")), snapshot => {
             renderUnits(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             if (!initialLoads[0]) { initialLoads[0] = true; checkInitialLoad(); }
         });
 
+        // 監聽班級列表
         onSnapshot(query(collection(db, "classes")), snapshot => {
+            // Document ID 作為 c.id
+            // classId 欄位作為 c.classId
+            // name 欄位作為 c.name
             renderClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             if (!initialLoads[1]) { initialLoads[1] = true; checkInitialLoad(); }
         });
 
+        // 監聽已發布訊息
         onSnapshot(query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(50)), snapshot => {
             renderMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             if (!initialLoads[2]) { initialLoads[2] = true; checkInitialLoad(); }
@@ -344,4 +387,3 @@
     </script>
 </body>
 </html>
-
