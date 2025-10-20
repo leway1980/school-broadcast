@@ -40,7 +40,7 @@
     </style>
 </head>
 <body class="p-4 md:p-8">
-    <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         <!-- 左側：發布與管理 -->
         <div class="lg:col-span-2 space-y-8">
@@ -62,10 +62,10 @@
                         <textarea id="message-content" rows="4" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" required></textarea>
                     </div>
 
-                    <!-- 廣播對象 (新版精簡介面) -->
+                    <!-- 廣播對象 (新版展開介面) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">廣播對象</label>
-                        <div id="class-targets-container" class="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div id="class-targets-container" class="p-3 bg-gray-50 rounded-lg border border-gray-200">
                              <!-- 班級將由 JavaScript 動態載入 -->
                              <p class="text-gray-500">正在從資料庫載入班級列表中...</p>
                         </div>
@@ -91,14 +91,14 @@
                 </form>
             </div>
             
-            <!-- 發布單位管理 (新功能) -->
+            <!-- 發布單位管理 -->
             <div class="bg-white p-6 rounded-2xl shadow-sm">
                 <details>
                     <summary class="text-xl font-bold text-gray-800">發布單位管理</summary>
                     <div class="mt-4 pt-4 border-t">
                         <div class="flex gap-2 mb-4">
-                            <input type="text" id="new-unit-name" placeholder="輸入新單位名稱" class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <button id="add-unit-btn" class="bg-green-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-green-600 transition">新增</button>
+                            <input type="text" id="new-unit-name" placeholder="輸入新單位名稱後按 Enter 或點按鈕" class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <button id="add-unit-btn" type="button" class="bg-green-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-green-600 transition">新增</button>
                         </div>
                         <ul id="units-list" class="space-y-2">
                             <!-- 單位列表將由 JavaScript 動態載入 -->
@@ -108,14 +108,14 @@
             </div>
         </div>
 
-        <!-- 右側：已公告內容 -->
+        <!-- 右側：已公告內容 (網格布局) -->
         <div class="bg-white p-6 rounded-2xl shadow-sm">
             <h2 class="text-xl font-bold text-gray-800 mb-4">已公告內容 (最近 50 則)</h2>
-            <div id="messages-list-container" class="h-[80vh] overflow-y-auto no-scrollbar">
-                <ul id="messages-list" class="space-y-3">
+            <div id="messages-list-container" class="h-[80vh] overflow-y-auto no-scrollbar -mr-2 -ml-1 pr-2 pl-1">
+                <div id="messages-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                     <!-- 訊息將由 JavaScript 動態載入 -->
-                    <li class="text-center text-gray-500 py-4">載入中...</li>
-                </ul>
+                    <p class="text-center text-gray-500 py-4 col-span-full">載入中...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -159,7 +159,6 @@
         const messagesList = document.querySelector('#messages-list');
         const classTargetsContainer = document.querySelector('#class-targets-container');
         
-        // 新增單位管理的 DOM 元素
         const addUnitBtn = document.querySelector('#add-unit-btn');
         const newUnitNameInput = document.querySelector('#new-unit-name');
         const unitsList = document.querySelector('#units-list');
@@ -181,19 +180,26 @@
                 document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false);
             }
         });
+        
+        // 修正：監聽 Enter 鍵新增單位
+        newUnitNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // 防止觸發表單提交
+                addUnitBtn.click(); // 觸發新增按鈕的點擊事件
+            }
+        });
+
 
         // --- 核心功能函式 ---
 
-        // 1. 渲染班級列表 (動態生成)
+        // 1. 渲染班級列表 (新版網格展開)
         function renderClasses(classes) {
             classTargetsContainer.innerHTML = '';
-            // 按照年級分組
             const groupedByGrade = classes.reduce((acc, curr) => {
                 (acc[curr.grade] = acc[curr.grade] || []).push(curr);
                 return acc;
             }, {});
 
-            // 按照 "國一", "國二", "國三", "高一", "高二", "高三" 的順序排序
             const gradeOrder = ["國一", "國二", "國三", "高一", "高二", "高三"];
             const sortedGrades = Object.entries(groupedByGrade).sort(([a], [b]) => gradeOrder.indexOf(a) - gradeOrder.indexOf(b));
 
@@ -202,43 +208,52 @@
                  return;
             }
 
+            const mainGrid = document.createElement('div');
+            mainGrid.className = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4';
+
             for (const [grade, classItems] of sortedGrades) {
                 const gradeContainer = document.createElement('div');
-                gradeContainer.className = 'flex items-center flex-wrap gap-x-3 gap-y-1';
-                
-                let gradeCheckboxes = `<label class="flex items-center font-semibold text-gray-800 whitespace-nowrap">
-                    <input type="checkbox" class="grade-checkbox h-4 w-4 mr-2 rounded" data-grade="${grade}">
-                    ${grade}
-                </label>`;
+                gradeContainer.className = 'space-y-2';
 
-                const classCheckboxes = classItems
-                    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant')) // 班級排序
+                const gradeHeader = `
+                    <div class="border-b pb-1">
+                        <label class="flex items-center font-semibold text-gray-800">
+                            <input type="checkbox" class="grade-checkbox h-4 w-4 mr-2 rounded" data-grade="${grade}">
+                            ${grade}
+                        </label>
+                    </div>
+                `;
+
+                const classCheckboxesHTML = classItems
+                    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'))
                     .map(c => `
-                    <label class="flex items-center text-sm">
+                    <label class="flex items-center text-sm font-normal">
                         <input type="checkbox" name="targetClasses" value="${c.id}" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 class-checkbox" data-grade="${grade}">
-                        <span class="ml-1">${c.name}</span>
+                        <span class="ml-2">${c.name}</span>
                     </label>
                 `).join('');
+                
+                const classContainer = document.createElement('div');
+                classContainer.className = 'grid grid-cols-2 gap-x-2 gap-y-1 pt-1';
+                classContainer.innerHTML = classCheckboxesHTML;
 
-                gradeContainer.innerHTML = gradeCheckboxes + classCheckboxes;
-                classTargetsContainer.appendChild(gradeContainer);
+                gradeContainer.innerHTML = gradeHeader;
+                gradeContainer.appendChild(classContainer);
+                mainGrid.appendChild(gradeContainer);
             }
-             // 年級全選功能
+            classTargetsContainer.appendChild(mainGrid);
+
             document.querySelectorAll('.grade-checkbox').forEach(gcb => {
                 gcb.addEventListener('change', (e) => {
                     const grade = e.target.dataset.grade;
-                    document.querySelectorAll(`.class-checkbox[data-grade="${grade}"]`).forEach(ccb => {
-                        ccb.checked = e.target.checked;
-                    });
+                    document.querySelectorAll(`.class-checkbox[data-grade="${grade}"]`).forEach(ccb => ccb.checked = e.target.checked);
                 });
             });
         }
 
         // 2. 渲染發布單位
         function renderUnits(units) {
-             // 更新下拉選單
              unitSelect.innerHTML = units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
-             // 更新管理列表
              unitsList.innerHTML = units.map(u => `
                 <li class="flex justify-between items-center p-2 bg-gray-100 rounded-md">
                     <span>${u.name}</span>
@@ -248,44 +263,41 @@
                 </li>
              `).join('');
              
-             // 為刪除按鈕加上事件監聽
              document.querySelectorAll('.delete-unit-btn').forEach(btn => {
                  btn.addEventListener('click', () => handleDeleteUnit(btn.dataset.id));
              });
         }
 
-        // 3. 渲染已發布訊息
+        // 3. 渲染已發布訊息 (新版網格卡片)
         function renderMessages(messages) {
             if (messages.length === 0) {
-                messagesList.innerHTML = `<li class="text-center text-gray-500 py-4">目前沒有任何廣播。</li>`;
+                messagesList.innerHTML = `<p class="text-center text-gray-500 py-4 col-span-full">目前沒有任何廣播。</p>`;
                 return;
             }
             messagesList.innerHTML = messages.map(msg => {
                 const isExpired = msg.expiresAt && msg.expiresAt.toDate() < new Date();
                 const timestamp = msg.createdAt ? msg.createdAt.toDate().toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'N/A';
                 return `
-                    <li class="border rounded-lg p-3 transition-all ${isExpired ? 'bg-gray-100 opacity-60' : 'bg-white hover:shadow-md'}">
-                        <div class="flex items-start justify-between">
-                            <!-- 內容區 -->
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-1">
-                                    ${msg.isEmergency ? '<span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">緊急</span>' : ''}
-                                    <p class="text-sm font-semibold text-gray-600 truncate">${msg.unit || '未分類'}</p>
-                                    <span class="text-xs text-gray-400">${timestamp}</span>
-                                </div>
-                                <p class="text-gray-800 break-words whitespace-pre-wrap">${msg.content}</p>
+                    <div class="border rounded-lg p-3 flex flex-col transition-all text-sm ${isExpired ? 'bg-gray-100 opacity-60' : 'bg-white hover:shadow-md'}">
+                        <!-- 內容區 -->
+                        <div class="flex-grow min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                ${msg.isEmergency ? '<span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full flex-shrink-0">緊急</span>' : ''}
+                                <p class="font-semibold text-gray-600 truncate">${msg.unit || '未分類'}</p>
                             </div>
-                            <!-- 按鈕區 -->
-                            <div class="flex items-center gap-2 ml-2 flex-shrink-0">
-                                <button data-id="${msg.id}" class="edit-btn p-1.5 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <button data-id="${msg.id}" class="delete-btn p-1.5 text-gray-500 hover:text-red-600 rounded-full hover:bg-gray-100 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
-                                </button>
-                            </div>
+                             <p class="text-xs text-gray-400 mb-2">${timestamp}</p>
+                            <p class="text-gray-800 break-words whitespace-pre-wrap text-xs flex-grow">${msg.content}</p>
                         </div>
-                    </li>
+                        <!-- 按鈕區 -->
+                        <div class="flex items-center justify-end gap-1 pt-2 mt-auto">
+                            <button data-id="${msg.id}" class="edit-btn p-1.5 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
+                            </button>
+                            <button data-id="${msg.id}" class="delete-btn p-1.5 text-gray-500 hover:text-red-600 rounded-full hover:bg-gray-100 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
+                    </div>
                 `;
             }).join('');
         }
@@ -300,7 +312,6 @@
 
         // --- Firestore 資料處理 ---
 
-        // 新增或更新廣播
         broadcastForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const selectedClasses = Array.from(document.querySelectorAll('input[name="targetClasses"]:checked')).map(cb => cb.value);
@@ -321,19 +332,18 @@
             };
             
             const id = editModeDocId.value;
-            if (id) { // 編輯模式
+            if (id) {
                 await updateDoc(doc(db, "messages", id), messageData);
                 alert("廣播已更新。");
-            } else { // 新增模式
+            } else {
                 messageData.createdAt = serverTimestamp();
-                messageData.expiresAt = expires; // 只有新增時設定過期時間
+                messageData.expiresAt = expires;
                 await addDoc(collection(db, "messages"), messageData);
                 alert("廣播已發布。");
             }
             resetForm();
         });
 
-        // 處理編輯
         async function handleEdit(id) {
             const docRef = doc(db, "messages", id);
             const docSnap = await getDoc(docRef);
@@ -354,19 +364,16 @@
             }
         }
         
-        // 刪除訊息 (軟刪除：設為立即過期)
         async function handleDeleteMessage(id) {
             if (confirm("確定要刪除（使此訊息立即過期）嗎？")) {
                 await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
             }
         }
 
-        // 新增單位
         addUnitBtn.addEventListener('click', async () => {
             const unitName = newUnitNameInput.value.trim();
             if (unitName) {
                 try {
-                    // 使用 unitName 作為文件 ID，避免重複
                     await setDoc(doc(db, "units", unitName), { name: unitName });
                     newUnitNameInput.value = '';
                 } catch (error) {
@@ -376,7 +383,6 @@
             }
         });
 
-        // 刪除單位
         async function handleDeleteUnit(id) {
             if (confirm(`確定要刪除這個單位嗎？\n(注意：這不會影響已發布的訊息)`)) {
                 try {
@@ -390,24 +396,20 @@
 
         cancelEditBtn.addEventListener('click', resetForm);
 
-
         // --- 即時監聽 Firestore 變更 ---
         if (db) {
-            // 監聽班級
             const classesQuery = query(collection(db, "classes"));
             onSnapshot(classesQuery, (snapshot) => {
                 const classes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderClasses(classes);
             }, (error) => console.error("監聽班級列表失敗:", error));
 
-            // 監聽單位
             const unitsQuery = query(collection(db, "units"), orderBy("name"));
             onSnapshot(unitsQuery, (snapshot) => {
                 const units = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderUnits(units);
             }, (error) => console.error("監聽單位列表失敗:", error));
             
-            // 監聽訊息
             const messagesQuery = query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(50));
             onSnapshot(messagesQuery, (snapshot) => {
                 const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
