@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校園廣播系統效益暨用戶滿意度研究 - 互動報告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Blackboard Style -->
+    <!-- Application Structure Plan: 本應用程式結合了「效益資訊圖表」的敘事結構與「滿意度研究」的真實數據，旨在打造一份具高度說服力的最終報告。整體架構依循「提出問題 -> 展示解決方案 -> 提供數據證據 -> 說明使用方法」的邏輯鋪陳，引導使用者從理解系統價值，到信服其研究成果。此結構能有效將兩份文件的內容整合成一個連貫且引人入勝的故事。 -->
+    <!-- Visualization & Content Choices: 1. 痛點與解決方案 -> Goal: Compare -> Viz/Presentation Method: 互動式HTML/CSS卡片 -> Justification: 沿用原設計，能直觀地連結問題與解答。Library/Method: HTML/CSS。2. 整體滿意度 -> Goal: Inform -> Viz/Presentation Method: 動態統計大字 -> Justification: 立即傳達最重要的研究成果。Library/Method: HTML/CSS。3. 五大構面 -> Goal: Compare -> Viz/Presentation Method: 雷達圖 -> Justification: 完美呈現多構面的均衡表現。Library/Method: Chart.js/Canvas。4. 最受歡迎功能 -> Goal: Rank -> Viz/Presentation Method: 水平長條圖 -> Justification: 清晰排序，凸顯系統亮點。Library/Method: Chart.js/Canvas。5. 質化效益 -> Goal: Organize -> Viz/Presentation Method: 條列式清單 -> Justification: 簡潔有力地總結文字性效益。Library/Method: HTML/CSS。 -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        :root {
+            --board-bg: #013220; /* 墨綠色 */
+            --card-bg: #02402c; /* 卡片使用較亮的墨綠色 */
+            --chalk-white: #F0F0F0;
+            --chalk-red: #D8315B; 
+            --chalk-dim: #A9A9A9;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--board-bg);
+            color: var(--chalk-white);
+        }
+        h1, h2, h3, h4, .text-dark { color: #FFFFFF; }
+        .text-primary { color: var(--chalk-white); }
+        .text-accent { color: var(--chalk-red); }
+        
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--chalk-dim);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 400px; }
+        }
+        .problem-solution-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background-color: var(--card-bg);
+            border-color: transparent;
+        }
+        .problem-solution-card.highlight {
+            transform: scale(1.03);
+            box-shadow: 0 10px 20px rgba(216, 49, 91, 0.3);
+            border-color: var(--chalk-red);
+        }
+        .flowchart-step {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 80px;
+        }
+        .flowchart-arrow {
+            font-size: 2rem;
+            color: var(--chalk-white);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <header class="text-center py-16">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">告別廣播打擾，迎向<span class="text-accent">寧靜校園</span></h1>
+            <p class="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">一份結合系統效益與真實用戶滿意度研究的互動整合報告。</p>
+        </header>
+
+        <section id="problem-solution" class="py-12">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold">從「痛點」到「解決方案」</h2>
+                <p class="text-gray-400 mt-2">將滑鼠移至任一困境上，查看電子佈告欄如何提供精準的解決方案。</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <div>
+                    <h3 class="text-2xl font-bold text-center mb-6">您是否也曾遇到這些困擾？</h3>
+                    <div id="problems" class="space-y-4">
+                        <div class="problem-solution-card p-6 rounded-lg shadow-md border-2" data-target="solution-1">
+                            <h4 class="font-bold text-lg">行政同仁的日常</h4>
+                            <ul class="list-disc list-inside text-gray-300 mt-2">
+                                <li>下課搶麥克風、被蓋台，心力交瘁。</li>
+                                <li>重複廣播效果不彰，業務不斷延宕。</li>
+                            </ul>
+                        </div>
+                        <div class="problem-solution-card p-6 rounded-lg shadow-md border-2" data-target="solution-2">
+                            <h4 class="font-bold text-lg">導師與老師的無奈</h4>
+                            <ul class="list-disc list-inside text-gray-300 mt-2">
+                                <li>教學被突如其來的廣播打斷。</li>
+                                <li>陷入協尋學生的無限循環。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold text-center mb-6">全新的解決方案</h3>
+                    <div id="solutions" class="space-y-4">
+                        <div id="solution-1" class="problem-solution-card p-6 rounded-lg shadow-md border-2" style="background-color: #03543F;">
+                            <h4 class="font-bold text-lg text-chalk-white">✅ 精準投放 & 介面極簡</h4>
+                            <p class="text-gray-300 mt-2">行政端可指定接收班級，學生只看到相關公告。無須再搶麥克風，登入網頁，一分鐘即可完成發布。</p>
+                        </div>
+                        <div id="solution-2" class="problem-solution-card p-6 rounded-lg shadow-md border-2" style="background-color: #03543F;">
+                            <h4 class="font-bold text-lg text-chalk-white">✅ 訊息非同步 & 隨時可查</h4>
+                            <p class="text-gray-300 mt-2">公告直接顯示，不擾亂課堂。所有訊息數位化保留，可隨時查看、重複確認，減少協尋成本。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="data-visualization" class="py-16 rounded-xl" style="background-color: #002216;">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold">研究數據怎麼說？用戶滿意度分析</h2>
+                <p class="text-gray-400 mt-2">本研究共調查 27 位教師與 545 位學生，數據證明系統在各方面均獲得高度肯定。</p>
+            </div>
+            <div class="space-y-16">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                    <div class="stat-card card p-8 rounded-xl shadow-lg text-center">
+                        <h3 class="text-xl font-semibold">教師整體滿意度</h3>
+                        <p class="text-6xl font-bold mt-4">4.09 <span class="text-2xl text-gray-400">/ 5</span></p>
+                        <p class="mt-2 px-4 py-1 inline-block bg-red-800 text-red-100 rounded-full text-sm font-semibold">達到「滿意」等級</p>
+                    </div>
+                    <div class="stat-card card p-8 rounded-xl shadow-lg text-center">
+                        <h3 class="text-xl font-semibold">學生整體滿意度</h3>
+                        <p class="text-6xl font-bold mt-4">4.13 <span class="text-2xl text-gray-400">/ 5</span></p>
+                        <p class="mt-2 px-4 py-1 inline-block bg-red-800 text-red-100 rounded-full text-sm font-semibold">達到「滿意」等級</p>
+                    </div>
+                </div>
+                 <div class="max-w-3xl mx-auto text-center">
+                     <h3 class="text-2xl font-bold mb-4">滿意度五大構面分析</h3>
+                     <p class="text-gray-400 mb-8">數據顯示，系統在「可靠性」與「保證性」上表現最為突出，證明其穩定與值得信賴。</p>
+                    <div class="card p-6 md:p-8 rounded-xl shadow-lg">
+                        <div class="chart-container"><canvas id="servqualRadarChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="max-w-4xl mx-auto text-center">
+                    <h3 class="text-2xl font-bold mb-4">最受使用者肯定的三大功能</h3>
+                    <p class="text-gray-400 mb-8">使用者對系統在「即時性」與「資訊清晰度」方面的功能給予了最高評價。</p>
+                    <div class="card p-6 md:p-8 rounded-xl shadow-lg">
+                         <div class="chart-container h-80 md:h-96"><canvas id="topFeaturesBarChart"></canvas></div>
+                    </div>
+                </div>
+                 <div class="max-w-4xl mx-auto text-center">
+                    <h3 class="text-2xl font-bold mb-4">研究結論與質化效益</h3>
+                     <div class="text-left card p-8 rounded-xl shadow-lg space-y-6">
+                        <div>
+                            <h4 class="text-xl font-bold text-chalk-white mb-2">✔️ 成功解決噪音干擾</h4>
+                            <p class="text-gray-300">系統有效克服傳統廣播對社區及教學現場的噪音干擾，提供一個更寧靜的學習環境。</p>
+                        </div>
+                         <div>
+                            <h4 class="text-xl font-bold text-chalk-white mb-2">📈 顯著提升行政效率</h4>
+                            <p class="text-gray-300">透過數位化與精準投放，減少重複廣播與紙本公告的需求，節省行政資源與時間。</p>
+                        </div>
+                         <div>
+                            <h4 class="text-xl font-bold text-chalk-white mb-2">🎯 強化訊息傳遞效果</h4>
+                            <p class="text-gray-300">系統能即時、詳細地傳送重要事項，並對聽障或需要視覺提示的師生更加友善，確保資訊傳達的完整性。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="how-it-works" class="py-16">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold">運作流程：簡單兩步驟</h2>
+                <p class="text-gray-400 mt-2">無論是發布訊息或接收訊息，流程都極度簡化。</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <div class="card p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold text-center mb-4">行政同仁：發布公告</h3>
+                    <div class="flex items-center justify-center space-x-2 md:space-x-4">
+                        <div class="flowchart-step p-3 rounded-lg font-bold" style="background-color: #333">登入管理頁面</div>
+                        <div class="flowchart-arrow">→</div>
+                        <div class="flowchart-step p-3 rounded-lg font-bold" style="background-color: #333">勾選對象<br/>輸入訊息</div>
+                        <div class="flowchart-arrow">→</div>
+                        <div class="flowchart-step p-3 rounded-lg font-bold" style="background-color: var(--chalk-red); color: white;">完成發布</div>
+                    </div>
+                </div>
+                <div class="card p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold text-center mb-4">導師與學生：接收公告</h3>
+                     <div class="flex items-center justify-center space-x-2 md:space-x-4">
+                        <div class="flowchart-step p-3 rounded-lg font-bold" style="background-color: #333">開啟教室電腦</div>
+                        <div class="flowchart-arrow">→</div>
+                        <div class="flowchart-step p-3 rounded-lg font-bold" style="background-color: #333">查看佈告欄</div>
+                        <div class="flowchart-arrow">→</div>
+                        <div class="flowchart-step p-3 rounded-lg font-bold" style="background-color: var(--chalk-red); color: white;">掌握新訊息</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-8 text-sm text-gray-500">
+        <p>「校園無聲廣播系統用戶滿意度研究」互動報告</p>
+        <p>發布日期：2025年10月20日</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            const studyData = {
+                dimensions: {
+                    labels: ['可靠性', '保證性', '關懷性', '有形性', '回應性'],
+                    scores: [4.145, 4.055, 4.01, 4.015, 3.695]
+                },
+                topFeatures: {
+                    labels: ['緊急事件通報', '幹部集合與訓練通知', '新訊息聲音提醒'],
+                    scores: [4.43, 4.40, 4.36]
+                }
+            };
+            
+            const chartTooltipCallback = {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                if (Array.isArray(label)) {
+                                    return label.join(' ');
+                                } else {
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            const radarChartCtx = document.getElementById('servqualRadarChart');
+            new Chart(radarChartCtx, {
+                type: 'radar',
+                data: {
+                    labels: studyData.dimensions.labels,
+                    datasets: [{
+                        label: '滿意度平均分數',
+                        data: studyData.dimensions.scores,
+                        fill: true,
+                        backgroundColor: 'rgba(216, 49, 91, 0.2)',
+                        borderColor: '#D8315B',
+                        pointBackgroundColor: '#D8315B',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#D8315B'
+                    }]
+                },
+                options: {
+                    ...chartTooltipCallback,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.2)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.2)' },
+                            pointLabels: { font: { size: 14 }, color: '#F0F0F0' },
+                            min: 3.5,
+                            max: 4.5,
+                            ticks: {
+                                backdropColor: 'rgba(0,0,0,0.5)',
+                                color: '#F0F0F0'
+                            }
+                        }
+                    },
+                    plugins: { 
+                        ...chartTooltipCallback.plugins, 
+                        legend: { 
+                            position: 'top',
+                            labels: { color: '#F0F0F0' }
+                        },
+                    }
+                }
+            });
+
+            const barChartCtx = document.getElementById('topFeaturesBarChart');
+            new Chart(barChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: studyData.topFeatures.labels,
+                    datasets: [{
+                        label: '平均分數',
+                        data: studyData.topFeatures.scores,
+                        backgroundColor: ['#D8315B', '#A9A9A9', '#666666'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    ...chartTooltipCallback,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { 
+                            beginAtZero: false, 
+                            min: 4.2, 
+                            max: 4.5, 
+                            grid: { display: false },
+                            ticks: { color: '#F0F0F0' }
+                        },
+                        y: { 
+                            grid: { display: false },
+                            ticks: { color: '#F0F0F0' }
+                        }
+                    },
+                    plugins: { ...chartTooltipCallback.plugins, legend: { display: false } }
+                }
+            });
+            
+            const problems = document.querySelectorAll('#problems .problem-solution-card');
+            problems.forEach(problem => {
+                problem.addEventListener('mouseenter', () => {
+                    const targetId = problem.dataset.target;
+                    document.getElementById(targetId).classList.add('highlight');
+                });
+                problem.addEventListener('mouseleave', () => {
+                    const targetId = problem.dataset.target;
+                    document.getElementById(targetId).classList.remove('highlight');
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>
+
