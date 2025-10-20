@@ -102,7 +102,7 @@
         </div>
     </div>
 
-    <div id="app-content" class="container mx-auto max-w-4xl hidden">
+    <div id="app-content" class="container mx-auto max-w-6xl hidden">
         <h1 class="text-3xl font-bold mb-6 text-gray-800 border-b pb-2">校園廣播系統 - 管理後台</h1>
 
         <!-- 廣播表單區域 -->
@@ -155,7 +155,7 @@
                     <label>持續時間 (小時)</label>
                     <div class="flex flex-wrap gap-4">
                         <label class="flex items-center">
-                            <input type="radio" name="duration" value="2" class="h-4 w-4 text-indigo-600" checked>
+                            <input type="radio" name="duration" value="2" class="h-4 w-4 text-indigo-600">
                             <span class="ml-2">2小時</span>
                         </label>
                         <label class="flex items-center">
@@ -184,11 +184,12 @@
             </form>
         </div>
 
-        <!-- 訊息列表區域 -->
+        <!-- 訊息列表區域 (已修正為 4 欄網格佈局) -->
         <div class="card p-6">
             <h2 class="text-2xl font-semibold mb-4 text-primary-green">當前廣播訊息列表</h2>
-            <div id="messages-list" class="space-y-4">
-                <p class="text-center text-gray-500" id="list-status">載入中...</p>
+            <!-- 修正點 2: 設置響應式網格，在大螢幕上顯示 4 欄 -->
+            <div id="messages-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <p class="text-center text-gray-500 col-span-full" id="list-status">載入中...</p>
             </div>
         </div>
     </div>
@@ -251,8 +252,8 @@
          */
         async function loadClassesAndRenderCheckboxes() {
             try {
-                // 班級列表的公開路徑
-                const classesCollectionPath = `/artifacts/${appId}/public/data/classes`;
+                // 修正點：移除路徑開頭多餘的斜線，確保Firestore路徑正確
+                const classesCollectionPath = `artifacts/${appId}/public/data/classes`;
                 const q = query(collection(db, classesCollectionPath));
 
                 // 班級列表使用 onSnapshot 確保即時更新 (雖然班級通常不會變動)
@@ -264,7 +265,7 @@
                         targetClassesContainer.innerHTML = ''; // 清空現有內容
 
                         if (snapshot.empty) {
-                            targetClassesContainer.innerHTML = '<p class="text-center text-gray-500 col-span-3">找不到班級資料，請檢查 Firestore 路徑。</p>';
+                            targetClassesContainer.innerHTML = '<p class="col-span-3 text-red-500 font-bold">找不到班級資料。請檢查 Firestore 集合是否為: public/data/classes</p>';
                             return;
                         }
 
@@ -286,9 +287,10 @@
                     }
                 }, (error) => {
                     console.error("[Firestore] 載入班級列表失敗: ", error);
+                    // 即使失敗也要移除載入中的提示，並給予錯誤訊息
                     if (classesLoadingPlaceholder) {
                         classesLoadingPlaceholder.classList.remove('hidden');
-                        classesLoadingPlaceholder.innerHTML = '<p class="text-center text-red-500 col-span-3">載入班級資料失敗。請檢查權限設定。</p>';
+                        classesLoadingPlaceholder.innerHTML = '<p class="col-span-3 text-red-500 font-bold">載入班級資料失敗。請檢查權限或集合路徑。</p>';
                     }
                 });
 
@@ -296,7 +298,7 @@
                 console.error("載入班級列表時發生錯誤: ", e);
                 if (classesLoadingPlaceholder) {
                     classesLoadingPlaceholder.classList.remove('hidden');
-                    classesLoadingPlaceholder.innerHTML = '<p class="text-center text-red-500 col-span-3">載入班級資料時發生致命錯誤。</p>';
+                    classesLoadingPlaceholder.innerHTML = '<p class="col-span-3 text-red-500 font-bold">載入班級資料時發生致命錯誤。</p>';
                 }
             }
         }
@@ -315,6 +317,7 @@
             const classesText = msg.targetClasses && msg.targetClasses.length > 0 ? msg.targetClasses.join(', ') : '所有班級';
             const expiresText = formatTimestamp(msg.expiresAt);
 
+            // 確保沒有任何淡化 (faded) 或透明度 (opacity) 的樣式，以符合需求
             return `
                 <div id="msg-${id}" class="card p-4 border-l-4 ${isEmergency}">
                     <div class="flex justify-between items-start">
@@ -327,7 +330,7 @@
                             <p class="mt-1 text-lg font-bold ${textColor}">${msg.content}</p>
                             <p class="mt-2 text-sm text-gray-600">過期時間: <span class="font-bold">${expiresText}</span></p>
                         </div>
-                        <div class="flex space-x-2 flex-shrink-0">
+                        <div class="flex space-x-2 flex-shrink-0 mt-1">
                             <button type="button" onclick="handleEdit('${id}')" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
                                 編輯
                             </button>
@@ -350,28 +353,36 @@
             
             // 查詢條件：僅顯示尚未過期的訊息 (expiresAt > 當前時間)
             const now = new Date();
+            // 排序條件：1.expiresAt (範圍查詢必須在最前面), 2.unit (處室名稱), 3.createdAt (同處室內最新時間)
             const q = query(
                 messagesRef,
-                where("expiresAt", ">", now)
-                // orderBy("expiresAt", "asc") // 暫時移除 orderBy 以避免潛在的索引問題
+                where("expiresAt", ">", now),
+                orderBy("expiresAt", "asc"), 
+                orderBy("unit", "asc"),      
+                orderBy("createdAt", "desc") 
             );
 
             onSnapshot(q, (snapshot) => {
                 const messageHtml = [];
+                // 清空狀態標籤，如果列表有內容則會隱藏
+                listStatus.textContent = '';
+                listStatus.classList.add('hidden');
+
                 if (snapshot.empty) {
                     listStatus.textContent = "目前沒有活躍的廣播訊息。";
+                    listStatus.classList.remove('hidden');
                 } else {
                     snapshot.forEach(doc => {
                         const msg = doc.data();
                         messageHtml.push(renderMessageCard(doc.id, msg));
                     });
-                    listStatus.classList.add('hidden');
+                    
                     messagesList.innerHTML = messageHtml.join('');
                     console.log(`[Firestore] 成功載入 ${snapshot.size} 則活躍訊息。`);
                 }
             }, (error) => {
                 console.error("[Firestore] 監聽訊息列表失敗: ", error);
-                listStatus.textContent = "載入訊息列表失敗，請檢查網路連線或權限設定。";
+                listStatus.textContent = "載入訊息列表失敗，請檢查網路連線、複合索引或權限設定。";
                 listStatus.classList.remove('hidden');
             });
         }
@@ -401,7 +412,7 @@
                         if(cb) cb.checked = true;
                     });
                     
-                    // 根據持續時間設定 radio button (目前沒有 duration 欄位，先選預設 8 小時)
+                    // 由於沒有 duration 欄位，維持預設選擇 8 小時
                     document.querySelector('input[name="duration"][value="8"]').checked = true;
 
                     cancelEditBtn.classList.remove('hidden');
@@ -416,16 +427,13 @@
         
         /**
          * 處理刪除按鈕點擊事件，直接從 Firestore 中永久刪除文件。
-         * 這樣 onSnapshot 會自動觸發，讓訊息即時消失。
          * @param {string} id - 訊息文件 ID
          */
         window.handleDelete = async function(id) {
              // 使用自定義模態框取代 confirm()
             if (!document.getElementById('delete-modal')) {
-                // 如果模態框不存在，創建它
                 createDeleteModal(id);
             } else {
-                // 如果模態框已存在，更新 ID
                 const modal = document.getElementById('delete-modal');
                 modal.dataset.deleteId = id;
                 modal.classList.remove('hidden');
@@ -438,15 +446,15 @@
          */
         function createDeleteModal(id) {
             const modalHtml = `
-                <div id="delete-modal" data-delete-id="${id}" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center">
+                <div id="delete-modal" data-delete-id="${id}" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-20">
                     <div class="card p-6 w-11/12 md:w-1/3 mx-auto">
-                        <h3 class="text-xl font-bold mb-4">確認刪除</h3>
-                        <p class="mb-6">您確定要永久刪除這則廣播訊息嗎？刪除後將立即從廣播列表中消失。</p>
+                        <h3 class="text-xl font-bold mb-4 text-red-700">確認永久刪除</h3>
+                        <p class="mb-6">您確定要**永久**刪除這則廣播訊息嗎？刪除後將立即從所有人的廣播列表中消失。</p>
                         <div class="flex justify-end gap-3">
-                            <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded" onclick="closeDeleteModal()">
+                            <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition" onclick="closeDeleteModal()">
                                 取消
                             </button>
-                            <button type="button" id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                            <button type="button" id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition">
                                 確定刪除
                             </button>
                         </div>
@@ -460,7 +468,7 @@
                 closeDeleteModal();
                 try {
                     await deleteDoc(doc(db, `artifacts/${appId}/public/data/messages`, deleteId));
-                    console.log(`文件 ID: ${deleteId} 已成功刪除。`);
+                    console.log(`文件 ID: ${deleteId} 已成功永久刪除。`);
                 } catch (error) {
                     console.error("刪除文件失敗:", error);
                 }
@@ -505,6 +513,14 @@
             const selectedClasses = Array.from(document.querySelectorAll('input[name="targetClasses"]:checked'))
                                          .map(cb => cb.value);
 
+            // 確保至少有一個班級被選中，除非班級列表根本沒有載入（但現在應該會載入）
+            if (selectedClasses.length === 0 && targetClassesContainer.childElementCount > 0 && classesLoadingPlaceholder.classList.contains('hidden')) {
+                // 使用自定義模態框取代 alert()
+                showCustomAlert("請選擇至少一個廣播對象！", "warning");
+                return;
+            }
+
+
             // 計算過期時間
             const expiresAt = new Date();
             expiresAt.setTime(expiresAt.getTime() + durationHours * 60 * 60 * 1000);
@@ -542,8 +558,44 @@
 
             } catch (error) {
                 console.error("發佈或更新訊息失敗:", error);
+                showCustomAlert(`發佈失敗: ${error.message}`, "error");
             }
         });
+
+        // --- 自定義提示框 (取代 alert/confirm) ---
+        function showCustomAlert(message, type = "info") {
+            const modalId = 'custom-alert-modal';
+            let modal = document.getElementById(modalId);
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = modalId;
+                modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50 hidden';
+                document.body.appendChild(modal);
+            }
+            
+            let color = 'bg-blue-500';
+            let title = '提示';
+            if (type === 'error') {
+                color = 'bg-red-500';
+                title = '錯誤';
+            } else if (type === 'warning') {
+                color = 'bg-yellow-500';
+                title = '警告';
+            }
+
+            modal.innerHTML = `
+                <div class="card p-6 w-11/12 md:w-1/3 mx-auto">
+                    <h3 class="text-xl font-bold mb-4 text-white p-2 rounded ${color}">${title}</h3>
+                    <p class="mb-6 text-gray-700">${message}</p>
+                    <div class="flex justify-end">
+                        <button type="button" class="bg-primary-green hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition" onclick="document.getElementById('${modalId}').classList.add('hidden')">
+                            確定
+                        </button>
+                    </div>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+        }
 
 
         // --- 啟動函式 ---
@@ -573,7 +625,7 @@
                         if (!isAuthReady) {
                             isAuthReady = true;
                             // 認證就緒後才開始載入資料和設定監聽
-                            loadClassesAndRenderCheckboxes(); // 修正點 1: 載入班級列表
+                            loadClassesAndRenderCheckboxes(); // 載入班級列表 (已修正路徑)
                             setupMessagesListener();          // 監聽訊息列表
 
                             // 隱藏載入畫面，顯示應用程式內容
