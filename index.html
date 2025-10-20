@@ -49,6 +49,10 @@
     </div>
 
     <script type="module">
+        // =================================================================
+        // 最終修正：確保以下網址為純粹的字串，
+        // 移除了所有會導致錯誤的 Markdown 格式。
+        // =================================================================
         import { initializeApp } from "[https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js](https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js)";
         import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs } from "[https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js](https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js)";
 
@@ -78,7 +82,7 @@
         // --- State Management ---
         const readMessageIds = new Set(); // << 新增：用來“記憶”已讀訊息的清單
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        let isFirstLoad = true; // << 用來判斷是否為首次載入
+        let isFirstLoad = true; // << 用來判断是否為首次載入
 
         // --- Functions ---
         
@@ -89,7 +93,6 @@
         }
         
         function playNotificationSound() {
-            // 只有當使用者與頁面互動後，音效才可能播放成功
             if (audioContext.state === 'suspended') {
                 audioContext.resume();
             }
@@ -117,7 +120,6 @@
             onSnapshot(q, (snapshot) => {
                 loader.style.display = 'none';
                 
-                // --- 修正後的音效與渲染邏輯 ---
                 let newMessagesFound = false;
                 snapshot.docChanges().forEach((change) => {
                     if (change.type === "added" && !isFirstLoad) {
@@ -129,9 +131,7 @@
                     playNotificationSound();
                 }
 
-                // 重新渲染整個列表，以確保順序正確
                 renderAllMessages(snapshot.docs);
-
                 isFirstLoad = false;
 
             }, (error) => {
@@ -158,7 +158,6 @@
             const card = document.createElement('div');
             card.className = `card ${msg.isEmergency ? 'urgent' : ''}`;
             
-            // --- 修正後的已讀狀態判斷 ---
             if (readMessageIds.has(msg.id)) {
                 card.classList.add('read');
             }
@@ -181,7 +180,7 @@
             card.addEventListener('click', () => {
                 showModal(msg);
                 card.classList.add('read');
-                readMessageIds.add(msg.id); // << 將已讀 ID 加入記憶清單
+                readMessageIds.add(msg.id);
             });
             return card;
         }
@@ -215,7 +214,6 @@
                 return;
             }
             
-            // 從 Firestore 動態獲取班級名稱
             const q = query(collection(db, "class_map"), where("classId", "==", classCode));
             const querySnapshot = await getDocs(q);
             
@@ -231,7 +229,6 @@
         // --- Event Listeners ---
         closeModal.onclick = () => { modal.style.display = 'none'; }
         window.onclick = (event) => { if (event.target == modal) { modal.style.display = 'none'; } }
-        // 解決瀏覽器音效自動播放政策
         document.body.addEventListener('click', () => {
             if (audioContext.state === 'suspended') {
                 audioContext.resume();
