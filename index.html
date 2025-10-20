@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班級電子佈告欄</title>
+    <style>
+        :root { --board-bg: #013220; --card-bg: #02402c; --text-color: #ecf0f1; --title-color: #f1c40f; --link-color: #ffcc66; --border-color: #7f8c8d; --urgent-bg: #8B0000; }
+        body, html { margin: 0; padding: 0; background-color: var(--board-bg); font-family: 'Noto Sans TC', sans-serif; color: var(--text-color); }
+        #header { background-color: var(--board-bg); padding: 1rem 2rem; border-bottom: 2px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+        #class-title { margin: 0; font-size: 2rem; color: var(--title-color); }
+        #clock { font-size: 1.8rem; color: var(--title-color); font-weight: bold; }
+        #main-container { padding: 2rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 2rem; }
+        .card { background-color: var(--card-bg); border: 2px solid var(--border-color); border-radius: 8px; box-shadow: 5px 5px 10px rgba(0,0,0,0.3); padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; height: 180px; justify-content: space-between; position: relative; }
+        .card.urgent { background-color: var(--urgent-bg); border-color: var(--title-color); }
+        .card.read { opacity: 0.7; }
+        .unread-indicator { position: absolute; top: 10px; left: 10px; width: 10px; height: 10px; background-color: var(--title-color); border-radius: 50%; }
+        .card.read .unread-indicator { display: none; }
+        .card:hover { transform: translateY(-5px); box-shadow: 8px 8px 15px rgba(0,0,0,0.4); }
+        .card-main-content { font-size: 1.25rem; font-weight: bold; color: var(--title-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-unit { font-size: 0.9rem; color: var(--text-color); margin-top: 0.5rem; }
+        .card-footer { margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; color: #bdc3c7; text-align: right; }
+        #modal { display: none; justify-content: center; align-items: center; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7); }
+        #modal-content { background-color: var(--card-bg); margin: auto; padding: 3rem; border: 2px solid var(--border-color); border-radius: 8px; width: 80%; max-width: 800px; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 20px rgba(0,0,0,0.5); position: relative; display: flex; flex-direction: column; }
+        #modal-close { position: absolute; top: 1rem; right: 1.5rem; color: var(--text-color); font-size: 2.5rem; font-weight: bold; cursor: pointer; }
+        .modal-message-content { font-size: 1.5rem; font-weight: bold; color: var(--title-color); line-height: 1.7; white-space: pre-wrap; word-wrap: break-word; flex-grow: 1; margin-bottom: 1.5rem; }
+        .modal-message-content a { color: var(--link-color); text-decoration: underline; }
+        .modal-unit-footer { font-size: 1rem; color: var(--text-color); text-align: right; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+        #loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div id="header"><h1 id="class-title"></h1><div id="clock"></div></div>
+    <div id="loader">載入公告中...</div>
+    <div id="main-container"></div>
+    <div id="modal"><div id="modal-content"><span id="modal-close">&times;</span><div id="modal-body"></div></div></div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
+            authDomain: "school-broadcast-system.firebaseapp.com",
+            projectId: "school-broadcast-system",
+            storageBucket: "school-broadcast-system.appspot.com",
+            messagingSenderId: "1057938447303",
+            appId: "1:1057938447303:web:81042cfb29f24bc4ff97e2",
+            measurementId: "G-LLRPYTW9QX"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const ui = {
+            container: document.getElementById('main-container'),
+            loader: document.getElementById('loader'),
+            modal: document.getElementById('modal'),
+            modalBody: document.getElementById('modal-body'),
+            closeModal: document.getElementById('modal-close'),
+            clock: document.getElementById('clock'),
+            classTitle: document.getElementById('class-title')
+        };
+        
+        const dingSound = new Audio('data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjQwLjEwMQAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAA//uQZAAAAAANdVFJAhQLsAAAAgDg//uQZbgAAAE8BwAADl3g//uQZRgAAAaYD/AADAzg//uQZbgAAAAAABg//uQZdgAAAaAD/AADAwID//uQZbgAAAAAABg//uQZdgAAAAAAD/AACA/wD//uQZbgAAAAAABg//uQZbgAAAAAABg//uQZbgAAAAAABgAAAAAAAAAAAAA//uQZbgEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAE//uQZbgEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAAAEAA==');
+        let currentMessageIds = new Set();
+        let unsubscribe = null;
+
+        function updateClock() {
+            const now = new Date();
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            ui.clock.textContent = `${now.getMonth() + 1}/${now.getDate()} (${weekdays[now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        }
+        
+        async function fetchClassMap() {
+            const classMap = {};
+            const snapshot = await getDocs(collection(db, "class_map"));
+            snapshot.forEach(doc => classMap[doc.data().classId] = doc.data().name);
+            return classMap;
+        }
+
+        function listenToMessages(classCode) {
+            if (unsubscribe) unsubscribe();
+            const q = query(
+                collection(db, "messages"),
+                where("expiresAt", ">", new Date()),
+                where("targetClasses", "array-contains-any", [classCode, "All"]),
+                orderBy("expiresAt", "desc")
+            );
+            
+            unsubscribe = onSnapshot(q, snapshot => {
+                ui.loader.style.display = 'none';
+                let hasNewMessage = false;
+                const latestMessageIds = new Set();
+
+                ui.container.innerHTML = snapshot.empty ? '<p style="text-align:center;width:100%;">目前沒有公告</p>' : '';
+
+                snapshot.forEach(doc => {
+                    const msg = { id: doc.id, ...doc.data() };
+                    latestMessageIds.add(msg.id);
+                    if (!currentMessageIds.has(msg.id) && currentMessageIds.size > 0) hasNewMessage = true;
+                    displayMessage(msg);
+                });
+                
+                currentMessageIds = latestMessageIds;
+                if (hasNewMessage) dingSound.play().catch(console.error);
+            }, error => {
+                ui.loader.style.display = 'none';
+                ui.container.innerHTML = `<p>讀取公告失敗: ${error.message}</p>`;
+            });
+        }
+
+        function displayMessage(msg) {
+            const card = document.createElement('div');
+            card.className = `card ${msg.isEmergency ? 'urgent' : ''}`;
+            const createdAt = msg.createdAt.toDate().toLocaleString('zh-TW', {hour12: false});
+            const expiresAt = msg.expiresAt.toDate().toLocaleString('zh-TW', {hour12: false});
+
+            card.innerHTML = `<div class="unread-indicator"></div><div><div class="card-main-content" title="${escapeHTML(msg.content)}">${escapeHTML(msg.content)}</div><div class="card-unit">${escapeHTML(msg.unit)}</div></div><div class="card-footer"><div>發布: ${createdAt}</div><div>截止: ${expiresAt}</div></div>`;
+            card.onclick = () => { showModal(msg); card.classList.add('read'); };
+            ui.container.appendChild(card);
+        }
+        
+        function escapeHTML(str) { return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
+
+        function showModal(msg) {
+            const urlRegex = /(\bhttps?:\/\/\S+)/ig;
+            const content = escapeHTML(msg.content).replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
+            ui.modalBody.innerHTML = `<div class="modal-message-content">${content}</div><div class="modal-unit-footer">${escapeHTML(msg.unit)}</div>`;
+            ui.modal.style.display = 'flex';
+        }
+
+        ui.closeModal.onclick = () => ui.modal.style.display = 'none';
+        window.onclick = e => { if (e.target == ui.modal) ui.modal.style.display = 'none'; }
+        
+        async function main() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            const classCode = new URLSearchParams(window.location.search).get('class');
+            if (!classCode) {
+                ui.loader.style.display = 'none';
+                ui.classTitle.textContent = "未指定班級";
+                ui.container.innerHTML = '<p style="text-align:center;width:100%;">請在網址後方加上 ?class=您的班級代號</p>';
+                return;
+            }
+            
+            const classMap = await fetchClassMap();
+            ui.classTitle.textContent = classMap[classCode] || '電子佈告欄';
+            listenToMessages(classCode);
+        }
+
+        main();
+    </script>
+</body>
+</html>
+
