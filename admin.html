@@ -11,7 +11,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; }
         
-        /* --- 版面配置 CSS 調整 --- */
+        /* --- 版面配置 CSS 調整 (Grid Layout) --- */
         /* 主網格佈局，小螢幕下為單欄 */
         .main-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
         @media (min-width: 1024px) { 
@@ -147,7 +147,7 @@
         // 設定 Firebase log level for debugging
         setLogLevel('debug');
         
-        // Firebase 設定
+        // Firebase 設定 (使用您的專案配置)
         const firebaseConfig = {
             apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
             authDomain: "school-broadcast-system.firebaseapp.com",
@@ -275,10 +275,10 @@
             document.querySelectorAll('.remove-unit-btn').forEach(btn => btn.addEventListener('click', () => btn.parentElement.remove()));
         }
         
-        // 渲染班級勾選框 (實現單行簡潔顯示)
+        // 渲染班級勾選框 (實現單行簡潔顯示並優化簡稱邏輯)
         function renderClassCheckboxes(classes) {
              classCheckboxContainer.innerHTML = '';
-             const grades = {};
+             const grades = {}; // 變數說明: 用於按年段 (key) 分組班級資料 (value) 的物件
              
              // 1. 渲染全校廣播選項
              const allDiv = document.createElement('div');
@@ -300,23 +300,26 @@
              
              // 2. 依年段分組資料 (資料解析邏輯)
              classes.forEach(c => {
+                 // c: 來自 Firestore 的單個班級文件資料 (例如: { classId: 'G101', name: '國一知班' })
                  if (!c.name || !c.classId) return; 
 
-                 let grade = '其他'; 
-                 let className = c.name.trim(); 
+                 let grade = '其他'; // 變數說明: 儲存解析出的年段名稱 (例如: "國一", "高三")
+                 let className = c.name.trim(); // 變數說明: 儲存完整的班級名稱 (例如: "國一知班")
                  
-                 // 嘗試從名稱開頭提取「年段」 (例如: 國一, 高三, 幼兒園)
+                 // 嘗試從名稱開頭提取「年段」
                  const gradeMatches = c.name.match(/^(國[一二三]|高[一二三]|[\u4e00-\u9fa5]{2,3})/);
                  
                  if (gradeMatches) {
                      grade = gradeMatches[0];
+                     // 移除年段前綴，只保留班級名稱 (例如: "知班", "大愛班")
                      let remainingName = c.name.substring(grade.length).trim();
                      if (remainingName.startsWith('-')) {
                          remainingName = remainingName.substring(1).trim();
                      }
+                     // className: 最終會是去除年段後的班級名稱
                      className = remainingName || grade; 
                  } else if (c.name.includes('-')) {
-                     // 如果沒有明確的年級前綴，但有連字符，則用連字符分組
+                     // 備用邏輯：如果沒有明確的年級前綴，但有連字符，則用連字符分組
                      const parts = c.name.split('-');
                      grade = parts[0].trim();
                      className = parts.slice(1).join('-').trim();
@@ -326,25 +329,55 @@
                  if (!className) return;
 
                  if (!grades[grade]) grades[grade] = { classes: [] };
+                 // 將班級 ID 和去除年段後的簡化名稱存入分組物件
                  grades[grade].classes.push({ id: c.classId, name: className });
              });
              
              // 3. 渲染每個年段的區塊 (單行簡潔呈現)
              for (const grade in grades) {
-                const gradeInfo = grades[grade];
+                const gradeInfo = grades[grade]; // 變數說明: 當前年段下的所有班級清單 { classes: [{ id, name }, ...] }
                 
                 const gradeContainer = document.createElement('div');
                 // 使用 flex 讓年段和班級在同一行
                 gradeContainer.className = "grade-row flex items-start p-2";
 
-                // 1. 生成所有班級的獨立勾選框 HTML (Label 只取第一個字)
-                const classItemsHTML = gradeInfo.classes.map(c => `
-                    <div class="class-item flex items-center">
-                        <input id="class-${c.id}" name="targetClasses" value="${c.id}" type="checkbox" 
-                               class="h-4 w-4 text-indigo-600 class-checkbox" data-grade="${grade}">
-                        <label for="class-${c.id}" class="ml-1 text-sm mr-2">${c.name.charAt(0)}</label>
-                    </div>
-                `).join('');
+                // 1. 生成所有班級的獨立勾選框 HTML
+                const classItemsHTML = gradeInfo.classes.map(c => {
+                    // c: 當前班級物件，包含 { id: 班級在 Firestore 的 classId, name: 經過年段處理後的班級名稱 (例如: "知班" 或 "大愛班") }
+                    const classId = c.id;
+                    let className = c.name; // 例如: "知班", "大愛班", "1班"
+                    let displayChar = '';  // 變數說明: 最終用於顯示在勾選框旁的簡稱 (例如: "知" 或 "愛")
+
+                    // --- 班級簡稱核心邏輯 ---
+                    let abbreviationName = className; // 變數說明: 處理簡稱時使用的臨時變數
+
+                    // A. 移除常見後綴 "班" 或 "組"
+                    if (abbreviationName.endsWith('班') || abbreviationName.endsWith('組')) {
+                         // 例如 "大愛班" 變成 "大愛", "1班" 變成 "1"
+                         abbreviationName = abbreviationName.slice(0, -1); 
+                    }
+
+                    // B. 根據簡化後的名稱長度決定顯示字符
+                    if (abbreviationName.length >= 2) {
+                        // 如果簡化後名稱有兩個或更多字 (例如 "大愛"), 則取**最後一個字** (例如: "愛")
+                        // 這滿足了 "大愛班" -> "愛" 的需求
+                        displayChar = abbreviationName.slice(-1); 
+                    } else if (abbreviationName.length === 1) {
+                        // 如果簡化後名稱只有一個字 (例如 "知"), 則取該字
+                        displayChar = abbreviationName.charAt(0); // 例如: "知"
+                    } else {
+                        // 其他情況 (例如名稱只剩下空字串), 以原始名稱的第一個字作為備用
+                        displayChar = className.charAt(0) || '?';
+                    }
+
+                    return `
+                        <div class="class-item flex items-center">
+                            <input id="class-${classId}" name="targetClasses" value="${classId}" type="checkbox" 
+                                class="h-4 w-4 text-indigo-600 class-checkbox" data-grade="${grade}">
+                            <label for="class-${classId}" class="ml-1 text-sm mr-2">${displayChar}</label>
+                        </div>
+                    `;
+                }).join('');
 
                 // 2. 組合年段勾選框和班級勾選框
                 gradeContainer.innerHTML = `
@@ -361,9 +394,9 @@
                 classCheckboxContainer.appendChild(gradeContainer);
              }
              
-             // 4. 綁定事件監聽器
+             // 4. 綁定事件監聽器 (處理勾選邏輯)
 
-             // A. 處理年段總勾選 (Group Checkbox Logic)
+             // A. 處理年段總勾選 (Grade Checkbox Logic)
              document.querySelectorAll('.grade-checkbox').forEach(cb => {
                  cb.addEventListener('change', (e) => {
                      const grade = e.target.dataset.grade;
@@ -374,7 +407,7 @@
                  });
              });
              
-             // B. 處理單一班級勾選 (Individual Checkbox Logic)
+             // B. 處理單一班級勾選 (Individual Class Checkbox Logic)
              document.querySelectorAll('input.class-checkbox').forEach(cb => {
                  cb.addEventListener('change', (e) => {
                      const grade = e.target.dataset.grade;
@@ -397,7 +430,7 @@
              });
         }
 
-        // 渲染即時訊息列表
+        // 渲染即時訊息列表 (未過期訊息)
         function renderMessages(docs) {
             messageList.innerHTML = '';
             if (docs.length === 0) {
@@ -451,10 +484,8 @@
                 
                 const id = input.dataset.id;
                 if (id) { 
-                    // 更新現有單位
                     batch.update(doc(db, "units", id), { name }); 
                 } else { 
-                    // 新增單位
                     batch.set(doc(collection(db, "units")), { name }); 
                 }
             });
@@ -574,13 +605,12 @@
                     if(cb) cb.checked = true;
                 });
                 
-                // 3. 檢查並勾選年段總勾選框
+                // 3. 檢查並勾選年段總勾選框 (若該年段所有班級都被勾選)
                 document.querySelectorAll('.grade-checkbox').forEach(gradeCb => {
                     const grade = gradeCb.dataset.grade;
                     const classCbs = document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]`);
                     const totalClasses = classCbs.length;
                     const checkedClasses = Array.from(classCbs).filter(cb => cb.checked).length;
-                    // 如果該年段所有班級都被勾選，則勾選年段總勾選框
                     if (totalClasses > 0 && totalClasses === checkedClasses) {
                         gradeCb.checked = true;
                     }
@@ -588,13 +618,12 @@
 
                 // 4. 檢查並勾選全校廣播
                 const allCheckbox = document.getElementById('class-All');
-                // 檢查是否所有班級都被勾選 (包括在 'All' 之外單獨勾選的情況)
                 const totalAllClasses = document.querySelectorAll('input.class-checkbox').length;
                 const checkedAllClasses = document.querySelectorAll('input.class-checkbox:checked').length;
                 if (totalAllClasses > 0 && totalAllClasses === checkedAllClasses) {
                     allCheckbox.checked = true;
                 } else if (msg.targetClasses.includes('All')) {
-                    // 如果 targetClasses 中包含 'All' 字串
+                    // 如果 targetClasses 中包含 'All' 字串 (代表發布時選了全校廣播)
                     allCheckbox.checked = true;
                 }
 
@@ -619,7 +648,6 @@
         
         // 處理刪除按鈕點擊事件 (將 expiresAt 設為當前時間，使其立即過期)
         async function handleDelete(id) {
-            // 使用 updateDoc 而非 deleteDoc，以便在資料庫中保留記錄，但立即從前台列表移除
             await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
             console.log("訊息已標記為過期，將自動從列表中消失。");
         }
