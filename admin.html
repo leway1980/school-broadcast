@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>校園廣播系統 - 行政管理後台</title>
+    <!-- 引入 Tailwind CSS 框架，用於快速樣式設計 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 引入 Inter 字體和基本樣式 */
@@ -11,22 +12,14 @@
         body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; }
         
         /* --- 版面配置 CSS 調整 (Grid Layout) --- */
-        /* 註解 (需求 1):
-          - .main-grid 定義了主內容區 (表單 和 列表) 的佈局。
-          - 預設 (手機) 為 1 欄 (1fr)。
-          - 當螢幕寬度 > 1024px 時，變為 2 欄 (1fr 1fr)。
-          - 微調提示: 若要改變左右比例，可修改 grid-template-columns，例如: 2fr 1fr (左邊 2 倍寬)。
-        */
+        /* 主網格佈局，小螢幕下為單欄 */
         .main-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
         @media (min-width: 1024px) { 
              /* 關鍵修改: 將版面改為 50/50 比例 (1fr 1fr) */
             .main-grid { grid-template-columns: 1fr 1fr; } 
         }
         
-        /* 註解 (需求 1):
-          - .unit-item 定義了「管理發布單位」列表中的樣式。
-          - 微調提示: 可在此調整 hover 效果 (background-color) 或按鈕顏色 (color)。
-        */
+        /* 單位管理清單項目樣式 */
         .unit-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-radius: 0.25rem; }
         .unit-item:hover { background-color: #e9ecef; }
         .unit-item input { border: none; background: transparent; }
@@ -40,10 +33,6 @@
         .class-item { display: flex; align-items: center; }
 
         /* 程式碼區塊 1: 新增訊息網格佈局 (唯一新增的 CSS) */
-        /* 註解 (需求 1):
-          - .messages-grid 這是右側訊息列表的佈局 (目前版本中未使用，但保留)。
-          - 預設 1 欄，電腦版 (min-width: 1024px) 變為 3 欄。
-        */
         .messages-grid {
             display: grid;
             grid-template-columns: repeat(1, minmax(0, 1fr)); /* 手機預設 1 欄 */
@@ -58,17 +47,21 @@
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
+    <!-- 登入畫面容器 -->
     <div id="login-container" class="text-center p-8 bg-white rounded-lg shadow-xl max-w-md w-full">
         <h1 class="text-2xl font-bold mb-4">校園廣播系統</h1>
         <p class="text-gray-600 mb-6">請使用學校 G Suite 帳號登入</p>
         <button id="login-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center mx-auto">
+            <!-- Google 圖示 SVG -->
             <svg class="w-6 h-6 mr-2" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.82l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
             使用 Google 帳號登入
         </button>
     </div>
 
+    <!-- 主操作畫面容器 -->
     <div id="main-container" class="w-full max-w-7xl p-8 bg-white rounded-lg shadow-xl hidden">
         
+        <!-- 頂部標題和登出按鈕 -->
         <div class="flex justify-between items-center mb-6 pb-4 border-b">
             <div>
                 <h1 class="text-3xl font-bold">行政管理後台</h1>
@@ -77,36 +70,49 @@
             <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">登出</button>
         </div>
 
+        <!-- 權限不足提示 -->
         <div id="permission-denied" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
             <p class="font-bold">權限不足</p><p>您的帳號不在管理員名單中，無法執行此操作。</p>
         </div>
 
+        <!-- 應用程式內容網格 -->
         <div id="app-content" class="main-grid hidden">
             
+            <!-- 左欄: 廣播發布表單 -->
             <form id="broadcast-form" class="space-y-6">
-                <input type="hidden" id="edit-mode-doc-id"> <div class="flex gap-4">
-                    
-                    <div class="flex-grow"> <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
-                        <select id="unit-select" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md"> <option value="" disabled selected>請選擇單位</option>
+                <input type="hidden" id="edit-mode-doc-id">
+                
+                <div class="flex gap-4">
+                    <!-- 
+                    ============================================================
+                    ▼▼▼ 程式碼修改區塊 1: 調整發布單位佈局 ▼▼▼
+                    - 將 <label> 移至容器 <div> 外。
+                    - 移除容器 <div> 的 p-3, border, rounded-lg, shadow-sm 樣式，使選單框變窄。
+                    ============================================================
+                    -->
+                    <div class="flex-grow">
+                        <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
+                        <select id="unit-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="" disabled selected>請選擇單位</option>
                         </select>
                     </div>
-                    <div>
+                    <!-- ▲▲▲ 程式碼修改區塊 1 ▲▲▲ -->
+
+                    <div class="p-3 border rounded-lg shadow-sm">
                         <label class="block text-sm font-medium text-gray-700">持續時間</label>
-                        <div class="mt-1 flex space-x-4 text-sm font-medium">
-                             <div class="flex items-center space-x-1">
-                                <input type="radio" id="dur_8h" name="duration" value="8" class="h-4 w-4 text-indigo-600 border-gray-300" checked>
-                                <label for="dur_8h" class="text-gray-700 cursor-pointer">8小時</label>
-                             </div>
-                             
-                             <div class="flex items-center space-x-1">
-                                <input type="radio" id="dur_1d" name="duration" value="24" class="h-4 w-4 text-indigo-600 border-gray-300">
-                                 <label for="dur_1d" class="text-gray-700 cursor-pointer">1天</label>
-                             </div>
-                             
-                             <div class="flex items-center space-x-1">
-                                <input type="radio" id="dur_2d" name="duration" value="48" class="h-4 w-4 text-indigo-600 border-gray-300">
-                                 <label for="dur_2d" class="text-gray-700 cursor-pointer">2天</label>
-                             </div>
+                        <div class="mt-2 flex items-center space-x-4">
+                            <div class="relative">
+                                <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked>
+                                <label for="dur_8h" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white peer-checked:border-blue-500">8小時</label>
+                            </div>
+                            <div class="relative">
+                                <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer">
+                                <label for="dur_1d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white peer-checked:border-blue-500">1天</label>
+                            </div>
+                            <div class="relative">
+                                <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer">
+                                <label for="dur_2d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white peer-checked:border-blue-500">2天</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -114,8 +120,7 @@
                 <details id="unit-management">
                     <summary class="cursor-pointer text-blue-600 hover:underline font-semibold">管理發布單位 ▾</summary>
                     <div class="p-4 border border-gray-300 rounded-lg mt-2 space-y-2">
-                         <div id="unit-list" class="space-y-2">
-                             </div>
+                         <div id="unit-list" class="space-y-2"></div>
                          <div class="flex justify-between items-center pt-2 border-t mt-2">
                              <button type="button" id="add-unit-btn" class="text-sm text-green-600 hover:text-green-700">✚ 新增單位</button>
                              <button type="button" id="save-units-btn" class="text-sm text-white bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded shadow-sm">儲存所有變更</button>
@@ -146,30 +151,19 @@
                 </div>
             </form>
 
+            <!-- 右欄: 即時訊息列表 -->
             <div id="message-list-container" class="border-l pl-6">
                  <h2 class="text-xl font-bold mb-4">即時訊息列表 (未過期)</h2>
-                 <div id="message-list" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-                     </div>
+                 <div id="message-list" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2"></div>
             </div>
         </div>
     </div>
 
     <script type="module">
-        // 引入 Firebase 必要的模組
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, query, writeBatch, updateDoc, onSnapshot, where, orderBy, setLogLevel, deleteDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-        // 設定 Firebase log level for debugging
-        // setLogLevel('debug'); // 開發時可取消註解
-        
-        // 
-        // 註解 (需求 1):
-        // - Firebase 設定檔。
-        // - 微調提示: 這些金鑰應放在安全的後端或環境變數中，
-        //   但對於 Firestore 搭配安全規則 (Security Rules) 的前端應用，
-        //   直接暴露是常見作法 (安全性由 Rules 控制)。
-        // 
         const firebaseConfig = {
             apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
             authDomain: "school-broadcast-system.firebaseapp.com",
@@ -180,22 +174,12 @@
             measurementId: "G-LLRPYTW9QX"
         };
 
-        // 初始化 Firebase 服務
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
-        // 
-        // 註解 (需求 1):
-        // - 限定 Google 登入的網域 (Hosted Domain)。
-        // - 微調提示: 若要開放給所有 G Suite 帳號，請註解掉下一行。
-        //
-        provider.setCustomParameters({ 'hd': 'tcsh.hlc.edu.tw' }); // 限定學校網域
-        
-        // 
-        // 註解 (需求 1):
-        // - 獲取 DOM 元素，方便 JS 後續操作。
-        //
+        provider.setCustomParameters({ 'hd': 'tcsh.hlc.edu.tw' });
+
         const loginContainer = document.getElementById('login-container');
         const mainContainer = document.getElementById('main-container');
         const unitSelect = document.getElementById('unit-select');
@@ -206,113 +190,64 @@
         const messageList = document.getElementById('message-list');
         const editModeDocId = document.getElementById('edit-mode-doc-id');
         const cancelEditBtn = document.getElementById('cancel-edit-btn');
-        const broadcastForm = document.getElementById('broadcast-form');
         
-        // 
-        // 註解 (需求 1):
-        // - 全域變數，用於儲存狀態。
-        //
-        let unitData = []; // 儲存從 Firestore 載入的單位清單
-        let isAdmin = false; // 儲存使用者是否為管理員
+        let unitData = [];
+        let isAdmin = false;
         
         // ============================================================
-        // ▼▼▼ 程式碼修改區塊 (需求 3: 保留最後單位) ▼▼▼
-        // 說明: 新增一個全域變數，用於儲存最後一次成功發布的單位名稱。
+        // ▼▼▼ 程式碼修改區塊 2.1: 新增變數以儲存最後選擇的單位 ▼▼▼
         // ============================================================
         let lastSelectedUnit = ""; 
-        // ▲▲▲ 程式碼修改區塊 (需求 3) ▲▲▲
+        // ▲▲▲ 程式碼修改區塊 2.1 ▲▲▲
 
-
-        // 監聽 Firebase 認證狀態變化
-        // 功能: 檢查使用者是否登入，並限定學校網域。控制顯示登入畫面或主程式畫面。
         onAuthStateChanged(auth, user => {
             const userInfo = document.getElementById('user-info');
             if (user && user.email.endsWith('@tcsh.hlc.edu.tw')) {
                 loginContainer.classList.add('hidden');
                 mainContainer.classList.remove('hidden');
                 userInfo.textContent = `管理員：${user.displayName} (${user.email})`;
-                checkAdminPermission(user.email); // 登入成功後檢查管理員權限
+                checkAdminPermission(user.email);
             } else {
                 mainContainer.classList.add('hidden');
                 loginContainer.classList.remove('hidden');
-                userInfo.textContent = ''; // 登出時清空
-                isAdmin = false; // 登出時重設權限
+                userInfo.textContent = '';
+                isAdmin = false;
             }
         });
 
-        // 
-        // 註解 (需求 1):
-        // - 登入/登出按鈕事件綁定。
-        // - 登入: 呼叫 signInWithPopup。
-        // - 登出: 呼叫 signOut。
-        //
         document.getElementById('login-btn').addEventListener('click', () => {
-            signInWithPopup(auth, provider).catch(error => {
-                console.error("登入失敗:", error);
-                if (error.code === 'auth/popup-closed-by-user') {
-                    alert("您關閉了登入視窗。");
-                } else if (error.code === 'auth/cancelled-popup-request') {
-                    // 忽略，使用者點了兩次
-                } else {
-                    alert(`登入時發生錯誤: ${error.message}`);
-                }
-            });
+            signInWithPopup(auth, provider).catch(error => console.error("登入失敗:", error));
         });
         
         document.getElementById('logout-btn').addEventListener('click', () => {
-            if (confirm("您確定要登出嗎？")) {
-                signOut(auth).catch(error => console.error("登出失敗:", error));
-            }
+             signOut(auth).catch(error => console.error("登出失敗:", error));
         });
 
-        // 檢查使用者是否具備管理員權限
-        // 功能: 透過查詢 Firestore `admins` 集合，判斷當前使用者是否有權操作後台。
         async function checkAdminPermission(email) {
-            try {
-                const docRef = doc(db, "admins", email);
-                const docSnap = await getDoc(docRef);
-                const permissionDenied = document.getElementById('permission-denied');
-                const appContent = document.getElementById('app-content');
-                
-                if (docSnap.exists()) {
-                    isAdmin = true;
-                    appContent.classList.remove('hidden');
-                    permissionDenied.classList.add('hidden');
-                    loadInitialData(); // 具備權限才載入資料
-                } else {
-                    isAdmin = false;
-                    appContent.classList.add('hidden');
-                    permissionDenied.classList.remove('hidden');
-                }
-            } catch (error) {
-                console.error("檢查權限時發生錯誤:", error);
+            const docRef = doc(db, "admins", email);
+            const docSnap = await getDoc(docRef);
+            const permissionDenied = document.getElementById('permission-denied');
+            const appContent = document.getElementById('app-content');
+            if (docSnap.exists()) {
+                isAdmin = true;
+                appContent.classList.remove('hidden');
+                permissionDenied.classList.add('hidden');
+                loadInitialData();
+            } else {
                 isAdmin = false;
-                document.getElementById('app-content').classList.add('hidden');
-                const permissionDenied = document.getElementById('permission-denied');
+                appContent.classList.add('hidden');
                 permissionDenied.classList.remove('hidden');
-                permissionDenied.innerHTML = `<p class="font-bold">發生錯誤</p><p>檢查權限時失敗，請稍後再試。</p>`;
             }
         }
 
-        // 載入初始資料及設定即時監聽器
-        // 
-        // 註解 (需求 1):
-        // - 功能: 設定對 `units`, `class_map`, 和 `messages` 的 Firestore 即時監聽 (onSnapshot)。
-        // - `units`: 載入後呼叫 renderUnits()。
-        // - `class_map`: 載入後呼叫 renderClassCheckboxes()。
-        // - `messages`: 查詢 (query) "未過期" (expiresAt > now) 的訊息，載入後呼叫 renderMessages()。
-        //
         function loadInitialData() {
             if (!isAdmin) return;
-
-            // 監聽發布單位 (units)
-            const unitsQuery = query(collection(db, "units"), orderBy("name")); // 建議加上排序
+            const unitsQuery = query(collection(db, "units"), orderBy("name"));
             onSnapshot(unitsQuery, (snapshot) => {
                 unitData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderUnits();
             }, (error) => console.error("Error fetching units:", error));
 
-            // 監聽班級對應表 (class_map)
             const classQuery = query(collection(db, "class_map"), orderBy("classId"));
             onSnapshot(classQuery, (snapshot) => {
                 renderClassCheckboxes(snapshot.docs.map(doc => doc.data()));
@@ -321,70 +256,39 @@
                 classCheckboxContainer.innerHTML = `<p class="text-center text-red-500 mt-4">載入班級資料失敗。</p>`;
             });
 
-            // 程式碼區塊 2: Firestore 查詢修改
-            // 說明: 查詢所有未過期的訊息 (expiresAt > 當前時間)，並設定即時監聽。
-            const q = query(collection(db, "messages"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "desc")); // 增加排序
+            const q = query(collection(db, "messages"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "desc"));
             onSnapshot(q, (snapshot) => {
-                renderMessages(snapshot.docs); // 呼叫新的 renderMessages 函式
+                renderMessages(snapshot.docs);
             }, (error) => console.error("Error fetching messages:", error));
         }
 
-        // 渲染發布單位清單
-        // 功能: 根據 Firestore 讀取的 `unitData`，更新表單中的下拉選單和管理區塊的編輯清單。
         function renderUnits() {
-            unitSelect.innerHTML = '<option value="" disabled>請選擇單位</option>'; // 移除 selected
+            unitSelect.innerHTML = '<option value="" disabled selected>請選擇單位</option>';
             unitList.innerHTML = '';
-            
             unitData.forEach(({ id, name }) => {
-                // 1. 填入下拉選單
                 const option = document.createElement('option');
                 option.value = name;
                 option.textContent = name;
                 unitSelect.appendChild(option);
 
-                // 2. 填入管理列表
                 const item = document.createElement('div');
                 item.className = 'unit-item';
-                item.dataset.id = id; // 儲存 firestore id
+                item.dataset.id = id;
                 item.innerHTML = `
                     <input type="text" value="${name}" data-original-name="${name}" class="flex-grow p-1 border-b border-transparent focus:border-blue-500 focus:outline-none">
                     <button type="button" class="remove-unit-btn ml-2 px-2 py-1 text-red-500 hover:text-red-700">&times; 刪除</button>
                 `;
                 unitList.appendChild(item);
             });
-
-            // ============================================================
-            // ▼▼▼ 程式碼修改區塊 (需求 3: 渲染時還原單位) ▼▼▼
-            // 
-            // 說明:
-            // 1. 渲染完畢後，檢查 (需求 3) 的 `lastSelectedUnit` 變數是否有值。
-            // 2. 如果有值，且該值存在於目前的選項中，則優先選中它。
-            // 3. 如果沒有，才使用 unitData[0].name (清單中的第一個) 作為預設值。
-            // 
-            // 未來微調 (需求 1):
-            // - 若不想預設選中任何項目，可將此區塊的 value 設置為 "" (即 "請選擇單位")。
-            // ============================================================
-            if (lastSelectedUnit && unitData.some(u => u.name === lastSelectedUnit)) {
-                unitSelect.value = lastSelectedUnit;
-            } else if (unitData.length > 0) {
-                unitSelect.value = unitData[0].name; // 預設選第一個
-            } else {
-                unitSelect.value = ""; // 如果沒有單位，退回 "請選擇單位"
+            if (unitData.length > 0) {
+                unitSelect.value = unitData[0].name;
             }
-            // ▲▲▲ 程式碼修改區塊 (需求 3) ▲▲▲
         }
 
-        // 
-        // 註解 (需求 1):
-        // - 單位管理按鈕事件綁定 (新增, 儲存, 刪除)。
-        // - 使用事件委派 (Event Delegation) 處理動態生成的「刪除」按鈕。
-        //
-
-        // (新增單位按鈕)
         addUnitBtn.addEventListener('click', () => {
             const newItem = document.createElement('div');
-            newItem.className = 'unit-item new-item'; // 標記為新項目
-            newItem.dataset.id = ''; // 新項目沒有 id
+            newItem.className = 'unit-item new-item';
+            newItem.dataset.id = '';
             newItem.innerHTML = `
                 <input type="text" value="新單位" placeholder="請輸入單位名稱" class="flex-grow p-1 border-b border-blue-500 focus:outline-none">
                 <button type="button" class="remove-unit-btn ml-2 px-2 py-1 text-red-500 hover:text-red-700">&times; 刪除</button>
@@ -393,10 +297,7 @@
             newItem.querySelector('input').focus();
         });
 
-        // (儲存所有變更按鈕 - 使用 Firestore WriteBatch)
         saveUnitsBtn.addEventListener('click', async () => {
-            if (!confirm("確定要儲存所有單位的變更嗎？\n(包含新增、修改和刪除)")) return;
-
             const batch = writeBatch(db);
             const items = unitList.querySelectorAll('.unit-item');
             const namesToUpdate = new Set();
@@ -406,79 +307,39 @@
                 const input = item.querySelector('input[type="text"]');
                 const name = input.value.trim();
                 const id = item.dataset.id;
-                
-                if (!name) {
-                    alert("單位名稱不可為空。");
-                    input.focus();
-                    hasError = true;
-                    return;
-                }
-                
-                if (namesToUpdate.has(name)) {
-                     alert(`名稱重複: "${name}"。請修正後再儲存。`);
-                    input.focus();
-                    hasError = true;
-                    return;
+                if (!name || namesToUpdate.has(name)) {
+                    hasError = true; return;
                 }
                 namesToUpdate.add(name);
-
-                if (id) { // 這是已存在的項目
-                    const originalName = input.dataset.originalName;
-                    if (name !== originalName) {
-                        batch.update(doc(db, "units", id), { name: name });
-                    }
-                } else if (item.classList.contains('new-item')) { // 這是新項目
-                    batch.set(doc(collection(db, "units")), { name: name });
+                if (id) {
+                    if (name !== input.dataset.originalName) batch.update(doc(db, "units", id), { name });
+                } else if (item.classList.contains('new-item')) {
+                    batch.set(doc(collection(db, "units")), { name });
                 }
             });
 
             if (hasError) return;
 
-            // 處理刪除 (找到不在 DOM 中，但在 unitData 中的)
             const currentIds = Array.from(items).map(item => item.dataset.id).filter(Boolean);
             unitData.forEach(unit => {
-                if (!currentIds.includes(unit.id)) {
-                    batch.delete(doc(db, "units", unit.id));
-                }
+                if (!currentIds.includes(unit.id)) batch.delete(doc(db, "units", unit.id));
             });
-
-            try {
-                await batch.commit();
-                alert("單位資料已成功儲存！");
-                // onSnapshot 會自動觸發並重新渲染 (renderUnits)
-            } catch (error) {
-                console.error("儲存單位失敗:", error);
-                alert(`儲存失敗: ${error.message}`);
-            }
+            await batch.commit();
         });
 
-        // (單位列表事件委派 - 處理刪除按鈕)
         unitList.addEventListener('click', (e) => {
             if (e.target.classList.contains('remove-unit-btn')) {
-                const item = e.target.closest('.unit-item');
-                if (item) {
-                    item.remove(); // 僅從 DOM 移除，點擊 "儲存" 時才會生效
-                }
+                e.target.closest('.unit-item')?.remove();
             }
         });
 
-
-        // 渲染班級勾選框
-        // 
-        // 註解 (需求 1):
-        // - 功能: 依據 `class_map` 資料，按年級 (grade) 分組，動態生成班級 checkboxes。
-        // - 並在頂部插入「全選/全不選」和「年段全選」按鈕。
-        //
         function renderClassCheckboxes(classes) {
-            classCheckboxContainer.innerHTML = ''; // 清空
+            classCheckboxContainer.innerHTML = '';
             const grouped = classes.reduce((acc, curr) => {
-                const grade = curr.grade || '未分類';
-                if (!acc[grade]) acc[grade] = [];
-                acc[grade].push(curr);
+                (acc[curr.grade || '未分類'] = acc[curr.grade || '未分類'] || []).push(curr);
                 return acc;
             }, {});
 
-            // 1. 新增「全選/全不選」控制
             const controls = document.createElement('div');
             controls.className = 'flex gap-4 mb-2 p-2 border-b';
             controls.innerHTML = `
@@ -487,80 +348,52 @@
             `;
             classCheckboxContainer.appendChild(controls);
 
-            // 2. 依年段渲染
             Object.keys(grouped).sort().forEach(grade => {
                 const gradeRow = document.createElement('div');
                 gradeRow.className = 'grade-row';
-                
-                // 年段標題 + 年段全選
                 gradeRow.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
                         <strong class="text-base font-semibold text-gray-800">年級: ${grade}</strong>
                         <button type="button" class="select-grade-btn text-xs text-indigo-500 hover:underline" data-grade="${grade}">此年級全選</button>
-                    </div>
-                `;
-                
+                    </div>`;
                 const classGrid = document.createElement('div');
-                classGrid.className = 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-1'; // RWD 網格
-                
+                classGrid.className = 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-1';
                 grouped[grade].forEach(cls => {
                     classGrid.innerHTML += `
                         <div class="class-item">
                             <input type="checkbox" id="class_${cls.classId}" name="classId" value="${cls.classId}" class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
                             <label for="class_${cls.classId}" class="ml-2 text-sm text-gray-700">${cls.className || cls.classId}</label>
-                        </div>
-                    `;
+                        </div>`;
                 });
-                
                 gradeRow.appendChild(classGrid);
                 classCheckboxContainer.appendChild(gradeRow);
             });
 
-            // 3. 綁定全選/全不選事件
-            document.getElementById('select-all-classes').addEventListener('click', () => {
-                document.querySelectorAll('#class-checkbox-container input[type="checkbox"]').forEach(cb => cb.checked = true);
-            });
-            document.getElementById('deselect-all-classes').addEventListener('click', () => {
-                document.querySelectorAll('#class-checkbox-container input[type="checkbox"]').forEach(cb => cb.checked = false);
-            });
+            document.getElementById('select-all-classes').addEventListener('click', () => setAllCheckboxes(true));
+            document.getElementById('deselect-all-classes').addEventListener('click', () => setAllCheckboxes(false));
             
-            // 4. 綁定年段全選 (事件委派)
             classCheckboxContainer.addEventListener('click', (e) => {
                 if (e.target.classList.contains('select-grade-btn')) {
-                    const grade = e.target.dataset.grade;
                     const gradeRow = e.target.closest('.grade-row');
-                    if (gradeRow) {
-                        gradeRow.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-                    }
+                    gradeRow?.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
                 }
             });
         }
+        
+        function setAllCheckboxes(checked) {
+             document.querySelectorAll('#class-checkbox-container input[type="checkbox"]').forEach(cb => cb.checked = checked);
+        }
 
-        // 渲染即時訊息列表
-        // 
-        // 註解 (需求 1):
-        // - 功能: 將 Firestore 載入的 `messages` 渲染到右側列表 (id="message-list")。
-        // - 包含「編輯」和「刪除」按鈕，並綁定 data-id (Firestore 文件 ID)。
-        // - 緊急訊息 (isEmergency) 會有不同的樣式 (bg-red-50)。
-        //
         function renderMessages(docs) {
-            messageList.innerHTML = '';
-            if (docs.length === 0) {
-                messageList.innerHTML = '<p class="text-gray-500">目前沒有即時訊息。</p>';
-                return;
-            }
-            
+            messageList.innerHTML = docs.length === 0 ? '<p class="text-gray-500">目前沒有即時訊息。</p>' : '';
             docs.forEach(doc => {
                 const msg = doc.data();
                 const card = document.createElement('div');
                 card.className = `p-4 rounded-lg border shadow-sm ${msg.isEmergency ? 'bg-red-50 border-red-200' : 'bg-white'}`;
-                
                 const expires = msg.expiresAt.toDate();
-                const now = new Date();
-                const diffMs = expires - now;
+                const diffMs = expires - new Date();
                 const diffHours = Math.floor(diffMs / 3600000);
                 const diffMins = Math.floor((diffMs % 3600000) / 60000);
-
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
                         <div>
@@ -575,212 +408,99 @@
                     <div class="mt-3 flex gap-2">
                         <button type="button" class="edit-btn text-sm text-blue-600 hover:underline" data-id="${doc.id}">編輯</button>
                         <button type="button" class="delete-btn text-sm text-red-600 hover:underline" data-id="${doc.id}">刪除(設為過期)</button>
-                    </div>
-                `;
+                    </div>`;
                 messageList.appendChild(card);
             });
         }
 
-        // 
-        // 註解 (需求 1):
-        // - 列表按鈕事件綁定 (編輯, 刪除)。
-        // - 使用事件委派 (Event Delegation) 監聽 (id="message-list") 上的點擊。
-        //
         messageList.addEventListener('click', (e) => {
             const id = e.target.dataset.id;
             if (!id) return;
-
-            if (e.target.classList.contains('edit-btn')) {
-                handleEdit(id);
-            }
-            if (e.target.classList.contains('delete-btn')) {
-                handleDelete(id);
-            }
+            if (e.target.classList.contains('edit-btn')) handleEdit(id);
+            if (e.target.classList.contains('delete-btn')) handleDelete(id);
         });
 
-        // 
-        // 註解 (需求 1):
-        // - 廣播表單提交事件 (id="broadcast-form")。
-        // - 處理「新增」和「更新」兩種模式 (依據 id="edit-mode-doc-id" 是否有值)。
-        // - 包含表單驗證 (單位、對象、內容)。
-        // - 成功後呼叫 resetForm()。
-        //
-        broadcastForm.addEventListener('submit', async (e) => {
+        document.getElementById('broadcast-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!isAdmin) {
-                alert("權限不足。");
-                return;
-            }
+            if (!isAdmin) return;
 
-            // 1. 獲取表單資料
             const unit = unitSelect.value;
             const content = document.getElementById('message-content').value.trim();
             const isEmergency = document.getElementById('is-emergency').checked;
             const durationHours = parseInt(document.querySelector('input[name="duration"]:checked').value, 10);
-            
             const selectedClasses = Array.from(document.querySelectorAll('input[name="classId"]:checked')).map(cb => cb.value);
 
-            // 2. 驗證
-            if (!unit) {
-                alert("請選擇發布單位。");
-                unitSelect.focus();
-                return;
-            }
-            if (selectedClasses.length === 0) {
-                alert("請至少選擇一個廣播對象（班級）。");
-                classCheckboxContainer.focus();
-                return;
-            }
-            if (!content) {
-                alert("請輸入訊息內容。");
-                document.getElementById('message-content').focus();
+            if (!unit || selectedClasses.length === 0 || !content) {
                 return;
             }
 
-            // 3. 準備 Firestore 資料
-            const now = new Date();
-            const expiresAt = new Date(now.getTime() + durationHours * 60 * 60 * 1000);
+            const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000);
             const docId = editModeDocId.value;
 
-            const data = {
-                unit,
-                content,
-                isEmergency,
-                targetClasses: selectedClasses,
-                expiresAt,
-                updatedAt: serverTimestamp() // 總是用 serverTimestamp 更新
-            };
+            const data = { unit, content, isEmergency, targetClasses: selectedClasses, expiresAt, updatedAt: serverTimestamp() };
 
-            try {
-                if (docId) {
-                    // 更新模式
-                    await updateDoc(doc(db, "messages", docId), data);
-                } else {
-                    // 新增模式
-                    data.createdAt = serverTimestamp();
-                    await addDoc(collection(db, "messages"), data);
-                }
-                
-                // ============================================================
-                // ▼▼▼ 程式碼修改區塊 (需求 3: 儲存最後單位) ▼▼▼
-                // 說明: 在表單重設前，將當前成功發布的單位名稱儲存到全域變數中。
-                // ============================================================
-                lastSelectedUnit = unit;
-                // ▲▲▲ 程式碼修改區塊 (需求 3) ▲▲▲
-                
-                resetForm(); // 重設表單
-
-            } catch (error) {
-                console.error("發布/更新失敗:", error);
-                alert(`操作失敗: ${error.message}`);
+            if (docId) {
+                await updateDoc(doc(db, "messages", docId), data);
+            } else {
+                data.createdAt = serverTimestamp();
+                await addDoc(collection(db, "messages"), data);
             }
-        });
+            
+            // ============================================================
+            // ▼▼▼ 程式碼修改區塊 2.2: 儲存成功發布的單位 ▼▼▼
+            // ============================================================
+            lastSelectedUnit = unit;
+            // ▲▲▲ 程式碼修改區塊 2.2 ▲▲▲
 
-        // 
-        // 註解 (需求 1):
-        // - 取消編輯按鈕 (id="cancel-edit-btn") 事件綁定。
-        // - 點擊時呼叫 resetForm()。
-        //
-        cancelEditBtn.addEventListener('click', () => {
             resetForm();
         });
 
+        cancelEditBtn.addEventListener('click', resetForm);
 
-        // 處理編輯按鈕點擊事件
-        // 
-        // 註解 (需求 1):
-        // - 功能: 從 Firestore 獲取該 id 的訊息資料，並將資料填回左側表單中，進入編輯模式。
-        //
         async function handleEdit(id) {
-            try {
-                const docRef = doc(db, "messages", id);
-                const docSnap = await getDoc(docRef);
+            const docRef = doc(db, "messages", id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const msg = docSnap.data();
+                unitSelect.value = msg.unit;
+                document.getElementById('message-content').value = msg.content;
+                document.getElementById('is-emergency').checked = msg.isEmergency;
+                editModeDocId.value = id;
+                document.querySelectorAll('input[name="classId"]').forEach(cb => cb.checked = msg.targetClasses.includes(cb.value));
 
-                if (docSnap.exists()) {
-                    const msg = docSnap.data();
-                    
-                    // 填回表單
-                    unitSelect.value = msg.unit;
-                    document.getElementById('message-content').value = msg.content;
-                    document.getElementById('is-emergency').checked = msg.isEmergency;
-                    editModeDocId.value = id; // 標記為編輯模式
+                const diffHours = (msg.expiresAt.toDate() - msg.createdAt.toDate()) / 3600000;
+                let durationValue = '8';
+                if (Math.abs(diffHours - 24) < 1) durationValue = '24'; 
+                else if (Math.abs(diffHours - 48) < 1) durationValue = '48'; 
+                
+                const durationInput = document.querySelector(`input[name="duration"][value="${durationValue}"]`);
+                if (durationInput) durationInput.checked = true;
 
-                    // 填回班級
-                    document.querySelectorAll('input[name="classId"]').forEach(cb => {
-                        cb.checked = msg.targetClasses.includes(cb.value);
-                    });
-
-                    // 填回持續時間
-                    const expires = msg.expiresAt.toDate();
-                    const created = msg.createdAt.toDate();
-                    const diffHours = (expires - created) / 3600000;
-                    
-                    let durationValue = '8';
-                    // 增加容錯範圍，確保即使時間略微偏差也能選中正確的選項
-                    if (Math.abs(diffHours - 24) < 1) durationValue = '24'; 
-                    else if (Math.abs(diffHours - 48) < 1) durationValue = '48'; 
-                    
-                    const durationInput = document.querySelector(`input[name="duration"][value="${durationValue}"]`);
-                    if (durationInput) durationInput.checked = true; // 選中對應的 radio button
-
-                    cancelEditBtn.classList.remove('hidden');
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); // 平滑滾動到頂部
-                }
-            } catch (error) {
-                console.error("載入編輯資料失敗:", error);
-                alert(`載入資料失敗: ${error.message}`);
+                cancelEditBtn.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
         
-        // 處理刪除按鈕點擊事件
-        // 功能: 不執行實際刪除，而是將訊息的 `expiresAt` 設為當前時間，使其立即過期，從列表中消失。
         async function handleDelete(id) {
-            if (confirm("確定要刪除此訊息嗎？\n(此操作會使訊息立即過期)")) {
-                try {
-                    await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
-                    // onSnapshot 會自動偵測到變化並移除此訊息
-                } catch (error) {
-                    console.error("刪除 (設為過期) 失敗:", error);
-                    alert(`刪除失敗: ${error.message}`);
-                }
-            }
+            await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
         }
         
-        // 重設表單狀態
-        // 功能: 清空表單內容、隱藏取消編輯按鈕，並將選取狀態重置為預設值。
         function resetForm() {
-            broadcastForm.reset();
+            document.getElementById('broadcast-form').reset();
             editModeDocId.value = '';
             cancelEditBtn.classList.add('hidden');
             
             // ============================================================
-            // ▼▼▼ 程式碼修改區塊 (需求 3: 重設時還原單位) ▼▼▼
-            //
-            // 說明:
-            // 1. `broadcastForm.reset()` 會將 <select> 重設為 HTML 中的預設值 (即 "請選擇單位")。
-            // 2. 我們在這裡手動檢查 `lastSelectedUnit` 變數。
-            // 3. 如果有值，則將 `unitSelect` 設回該值。
-            // 4. 如果沒有值 (例如剛載入頁面還沒發布過)，則設為清單的第一個 (如果有的話)。
-            //
-            // 未來微調 (需求 1):
-            // - 如果希望重設表單時 *也* 重設下拉選單 (回到 "請選擇單位")，請刪除或註解掉以下 if/else 區塊。
+            // ▼▼▼ 程式碼修改區塊 2.3: 重設表單時，還原上次的單位選項 ▼▼▼
             // ============================================================
             if (lastSelectedUnit) {
                 unitSelect.value = lastSelectedUnit;
             } else if (unitData.length > 0) {
                 // 如果還沒有發布過，就退回預設 (第一個)
                 unitSelect.value = unitData[0].name;
-            } else {
-                unitSelect.value = ""; // 沒有單位資料
             }
-            // ▲▲▲ 程式碼修改區塊 (需求 3) ▲▲▲
-
-            // 重設 Radio Button 回 8 小時
-            document.querySelector('input[name="duration"][value="8"]').checked = true;
-            // 清空所有班級勾選
-            document.querySelectorAll('#class-checkbox-container input[type="checkbox"]').forEach(cb => cb.checked = false);
+            // ▲▲▲ 程式碼修改區塊 2.3 ▲▲▲
         }
-
     </script>
 </body>
 </html>
