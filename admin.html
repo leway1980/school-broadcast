@@ -20,428 +20,656 @@
         }
         
         /* 單位管理清單項目樣式 */
-        .unit-item { display: flex; justify-content: space-between; align-items: center; }
+        .unit-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-radius: 0.25rem; }
+        .unit-item:hover { background-color: #e9ecef; }
+        .unit-item input { border: none; background: transparent; }
+        .unit-item button { color: #dc3545; }
         
-        /* 程式碼區塊 1: 訊息清單佈局 CSS 調整 (響應式 3 欄) */
-        /* 說明: 這是訊息卡片清單的父容器樣式。手機預設 1 欄。 */
-        .messages-grid {
-            display: grid;
-            grid-template-columns: repeat(1, minmax(0, 1fr));
-            gap: 1.5rem;
-        }
-        @media (min-width: 768px) { /* md: 平板/桌面 改為 3 欄 */
-            .messages-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
-        }
+        /* 廣播對象 (班級) 依年段分組的行樣式 */
+        .grade-row { border-bottom: 1px dashed #e5e7eb; padding: 8px 0; }
+        .grade-row:last-child { border-bottom: none; }
+        
+        /* 班級項目樣式，用於單行簡潔顯示 */
+        .class-item { display: flex; align-items: center; }
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">校園無聲廣播系統 - 行政管理後台</h1>
+<body class="flex items-center justify-center min-h-screen p-4">
 
-        <div class="main-grid">
-            <!-- 訊息發布欄位 (左側介面，完全還原為原始版本) -->
-            <div class="p-6 bg-white rounded-xl shadow-lg h-fit sticky top-8">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">發布新訊息 / 編輯訊息</h2>
-                <form id="broadcast-form" class="space-y-4">
-                    <input type="hidden" id="edit-mode-doc-id">
+    <!-- 登入畫面容器 -->
+    <div id="login-container" class="text-center p-8 bg-white rounded-lg shadow-xl max-w-md w-full">
+        <h1 class="text-2xl font-bold mb-4">校園廣播系統</h1>
+        <p class="text-gray-600 mb-6">請使用學校 G Suite 帳號登入</p>
+        <button id="login-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center mx-auto">
+            <!-- Google 圖示 SVG -->
+            <svg class="w-6 h-6 mr-2" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.82l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+            使用 Google 帳號登入
+        </button>
+    </div>
 
-                    <!-- 訊息標題 -->
-                    <div>
-                        <label for="title" class="block text-sm font-medium text-gray-700">標題 (必填)</label>
-                        <input type="text" id="title" name="title" required
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                    </div>
+    <!-- 主操作畫面容器 -->
+    <div id="main-container" class="w-full max-w-7xl p-8 bg-white rounded-lg shadow-xl hidden">
+        <!-- 頂部標題和登出按鈕 -->
+        <div class="flex justify-between items-center mb-6 pb-4 border-b">
+            <div>
+                <h1 class="text-3xl font-bold">行政管理後台</h1>
+                <p id="user-info" class="text-sm text-gray-500"></p>
+            </div>
+            <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">登出</button>
+        </div>
 
-                    <!-- 訊息內容 -->
-                    <div>
-                        <label for="content" class="block text-sm font-medium text-gray-700">內容 (必填)</label>
-                        <textarea id="content" name="content" rows="3" required
-                                  class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"></textarea>
-                    </div>
+        <!-- 權限不足提示 -->
+        <div id="permission-denied" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+            <p class="font-bold">權限不足</p><p>您的帳號不在管理員名單中，無法執行此操作。</p>
+        </div>
 
-                    <!-- 處室名稱 (單位) 選擇 -->
-                    <div>
-                        <label for="unit-select" class="block text-sm font-medium text-gray-700">發布處室 (必填)</label>
-                        <select id="unit-select" name="unit" required
-                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border bg-white">
-                            <option value="">請選擇發布單位</option>
+        <!-- 應用程式內容網格 (左側表單, 右側列表) -->
+        <div id="app-content" class="main-grid hidden">
+            <!-- 左欄: 廣播發布表單 (佔 1/2 寬度) -->
+            <form id="broadcast-form" class="space-y-6">
+                <input type="hidden" id="edit-mode-doc-id">
+                
+                <!-- 發布單位與持續時間區塊 -->
+                <div class="flex gap-4">
+                    
+                    <!-- 發布單位選擇 (新增外框 p-3 border rounded-lg) -->
+                    <div class="flex-grow p-3 border border-gray-300 rounded-lg shadow-sm">
+                        <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
+                        <select id="unit-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md">
+                            <option value="" disabled selected>請選擇單位</option>
                         </select>
                     </div>
-
-                    <!-- 廣播對象 (範圍) 選擇 -->
+                    
+                    <!-- 持續時間選擇 (優化樣式，確保只有選中才亮) -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">廣播對象 (可複選)</label>
-                        <div id="target-checkboxes" class="flex flex-wrap gap-x-4 gap-y-2">
-                            <!-- Placeholder for Target Checkboxes -->
+                        <label class="block text-sm font-medium text-gray-700">持續時間</label>
+                        <div class="mt-1 flex space-x-2 text-sm font-medium">
+                             <!-- 預設 8 小時為選中狀態 -->
+                             <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked>
+                             <label for="dur_8h" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
+                                text-gray-700 hover:bg-gray-100 
+                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">8小時</label>
+                             
+                             <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer">
+                             <label for="dur_1d" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
+                                text-gray-700 hover:bg-gray-100 
+                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">1天</label>
+                             
+                             <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer">
+                             <label for="dur_2d" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
+                                text-gray-700 hover:bg-gray-100 
+                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">2天</label>
                         </div>
                     </div>
-
-                    <!-- 訊息有效期限 -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">訊息有效期限 (預設 8 小時)</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="duration" value="8" checked
-                                       class="form-radio text-indigo-600 h-4 w-4">
-                                <span class="ml-2 text-sm text-gray-700">8 小時</span>
-                            </label>
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="duration" value="24"
-                                       class="form-radio text-indigo-600 h-4 w-4">
-                                <span class="ml-2 text-sm text-gray-700">24 小時</span>
-                            </label>
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="duration" value="48"
-                                       class="form-radio text-indigo-600 h-4 w-4">
-                                <span class="ml-2 text-sm text-gray-700">48 小時</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- 提交按鈕與取消編輯按鈕 -->
-                    <div class="flex space-x-3 pt-2">
-                        <button type="submit"
-                                class="flex-1 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                            發布 / 儲存
-                        </button>
-                        <button type="button" id="cancel-edit-btn"
-                                class="px-4 py-2 bg-gray-300 text-gray-800 font-semibold rounded-lg shadow-md hover:bg-gray-400 focus:outline-none transition ease-in-out duration-150 hidden">
-                            取消編輯
-                        </button>
-                    </div>
-                </form>
-            </div>
-            <!-- 左側介面 END -->
-
-            <!-- 已發布訊息欄位 (右側介面，僅修改此處的渲染邏輯) -->
-            <div>
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">已發布訊息 (依處室分組，組內最新訊息在上方)</h2>
-                <div id="messages-list" class="space-y-8">
-                    <!-- 訊息將由 JS 動態載入 -->
-                    <p id="loading-indicator" class="text-center text-gray-500">載入中...</p>
-                    <p id="no-messages-indicator" class="text-center text-gray-500 hidden">目前沒有有效訊息。</p>
                 </div>
+                
+                <!-- 單位管理區塊 (新增外框 p-4 border rounded-lg) -->
+                <details id="unit-management">
+                    <summary class="cursor-pointer text-blue-600 hover:underline font-semibold">管理發布單位 ▾</summary>
+                    <div class="p-4 border border-gray-300 rounded-lg mt-2 space-y-2">
+                         <div id="unit-list" class="space-y-2">
+                             <!-- 單位清單將由 JavaScript 渲染 -->
+                         </div>
+                         <div class="flex justify-between items-center pt-2 border-t mt-2">
+                             <button type="button" id="add-unit-btn" class="text-sm text-green-600 hover:text-green-700">✚ 新增單位</button>
+                             <button type="button" id="save-units-btn" class="text-sm text-white bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded shadow-sm">儲存所有變更</button>
+                         </div>
+                    </div>
+                </details>
+                
+                <!-- 廣播對象 (班級選擇區塊) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">廣播對象</label>
+                    <div id="class-checkbox-container" class="mt-2 p-4 border rounded-md max-h-96 overflow-y-auto space-y-1">
+                        <!-- 班級清單將由 JavaScript 渲染並依年段分組 -->
+                        <p class="text-center text-gray-400 mt-4">載入班級資料中...</p>
+                    </div>
+                </div>
+                
+                <!-- 訊息內容輸入框 -->
+                <div>
+                    <label for="message-content" class="block text-sm font-medium text-gray-700">訊息內容</label>
+                    <textarea id="message-content" rows="5" class="mt-1 shadow-sm block w-full sm:text-sm border border-gray-300 rounded-md"></textarea>
+                </div>
+                
+                <!-- 緊急訊息勾選框 -->
+                <div class="flex items-center">
+                    <input id="is-emergency" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded">
+                    <label for="is-emergency" class="ml-2 block text-sm text-gray-900">設為緊急訊息</label>
+                </div>
+                
+                <!-- 提交與取消按鈕 -->
+                <div class="flex gap-4">
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">發布/更新公告</button>
+                    <button type="button" id="cancel-edit-btn" class="w-1/3 flex justify-center py-2 px-4 border rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 hidden">取消編輯</button>
+                </div>
+            </form>
+
+            <!-- 右欄: 即時訊息列表 (佔 1/2 寬度) -->
+            <div id="message-list-container" class="border-l pl-6">
+                 <h2 class="text-xl font-bold mb-4">即時訊息列表 (未過期)</h2>
+                 <div id="message-list" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                     <!-- 即時訊息清單將由 Firebase 監聽器渲染 -->
+                 </div>
             </div>
-            <!-- 右側介面 END -->
         </div>
     </div>
 
-    <!-- Firebase 引用與設定 -->
+    <!-- JavaScript 邏輯區塊 -->
     <script type="module">
-        // 程式碼區塊 2: Firebase 核心引入與初始化 (已還原至原始版本邏輯)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // 確保 initializeApp 傳入一個有效的 config，此處使用空物件避免報錯
-        const app = initializeApp({}); 
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+        // 引入 Firebase 必要的模組
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, query, writeBatch, updateDoc, onSnapshot, where, orderBy, setLogLevel } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-        const form = document.getElementById('broadcast-form');
-        const editModeDocId = document.getElementById('edit-mode-doc-id');
+        // 設定 Firebase log level for debugging
+        setLogLevel('debug');
+        
+        // Firebase 設定 (使用您的專案配置)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
+            authDomain: "school-broadcast-system.firebaseapp.com",
+            projectId: "school-broadcast-system",
+            storageBucket: "school-broadcast-system.appspot.com",
+            messagingSenderId: "1057938447303",
+            appId: "1:1057938447303:web:81042cfb29f24bc4ff97e2",
+            measurementId: "G-LLRPYTW9QX"
+        };
+
+        // 初始化 Firebase 服務
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ 'hd': 'tcsh.hlc.edu.tw' }); // 限定學校網域
+        
+        // 獲取 DOM 元素
+        const loginContainer = document.getElementById('login-container');
+        const mainContainer = document.getElementById('main-container');
         const unitSelect = document.getElementById('unit-select');
-        const targetCheckboxesDiv = document.getElementById('target-checkboxes');
+        const unitList = document.getElementById('unit-list');
+        const addUnitBtn = document.getElementById('add-unit-btn');
+        const saveUnitsBtn = document.getElementById('save-units-btn');
+        const classCheckboxContainer = document.getElementById('class-checkbox-container');
+        const messageList = document.getElementById('message-list');
+        const editModeDocId = document.getElementById('edit-mode-doc-id');
         const cancelEditBtn = document.getElementById('cancel-edit-btn');
         
-        let unitOptions = []; 
-        let targetOptions = []; 
+        let unitData = []; // 變數說明: 儲存從 Firestore 讀取的「發布單位」清單原始資料
+        let isAdmin = false; // 變數說明: 用於標記當前使用者是否具備管理員權限
 
-        // 輔助函數：處理資料庫路徑 (還原至原始版本路徑)
-        function getUnitCollectionRef() {
-            return collection(db, "units");
-        }
-        function getMessageCollectionRef() {
-            return collection(db, "messages");
-        }
-
-        // --- Firebase 驗證與初始化 (已還原) ---
-        async function authenticate() {
-            try {
-                // 使用 signInAnonymously 確保環境穩定性
-                await signInAnonymously(auth); 
-                console.log("Firebase 驗證成功 (匿名登入)。");
-            } catch (error) {
-                console.error("Firebase 驗證失敗:", error);
+        // 身份驗證狀態監聽 (Authentication Listener)
+        onAuthStateChanged(auth, user => {
+            const userInfo = document.getElementById('user-info');
+            if (user && user.email.endsWith('@tcsh.hlc.edu.tw')) {
+                // 登入成功且為學校帳號
+                loginContainer.classList.add('hidden');
+                mainContainer.classList.remove('hidden');
+                userInfo.textContent = `管理員：${user.displayName} (${user.email})`;
+                checkAdminPermission(user.email);
+            } else {
+                // 未登入或非學校帳號
+                mainContainer.classList.add('hidden');
+                loginContainer.classList.remove('hidden');
             }
-        }
+        });
 
-        // --- 載入處室與廣播對象選項 (邏輯不變) ---
-        async function loadOptions() {
-            try {
-                const q = query(getUnitCollectionRef(), orderBy('order'));
-                const querySnapshot = await getDocs(q);
-                
-                unitOptions = [];
-                targetOptions = [];
-
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    if (data.type === 'unit') {
-                        unitOptions.push(data.name);
-                    } else if (data.type === 'target') {
-                        targetOptions.push(data.name);
-                    }
-                });
-
-                // 渲染處室選擇
-                unitSelect.innerHTML = '<option value="">請選擇發布單位</option>' + 
-                    unitOptions.map(unit => `<option value="${unit}">${unit}</option>`).join('');
-                
-                // 渲染廣播對象多選框
-                targetCheckboxesDiv.innerHTML = targetOptions.map(target => `
-                    <label class="inline-flex items-center">
-                        <input type="checkbox" name="target" value="${target}"
-                               class="form-checkbox text-indigo-600 h-4 w-4 rounded">
-                        <span class="ml-2 text-sm text-gray-700">${target}</span>
-                    </label>
-                `).join('');
-
-            } catch (error) {
-                console.error("載入選項失敗:", error);
+        // 檢查管理員權限 (Admin Check)
+        async function checkAdminPermission(email) {
+            const docRef = doc(db, "admins", email);
+            const docSnap = await getDoc(docRef);
+            const permissionDenied = document.getElementById('permission-denied');
+            const appContent = document.getElementById('app-content');
+            
+            if (docSnap.exists()) {
+                // 具備權限
+                isAdmin = true; 
+                appContent.classList.remove('hidden');
+                permissionDenied.classList.add('hidden');
+                loadInitialData(); // 權限通過後開始載入資料
+            } else {
+                // 權限不足
+                isAdmin = false;
+                appContent.classList.add('hidden');
+                permissionDenied.classList.remove('hidden');
             }
         }
         
-        // --- 表單提交處理 (邏輯不變) ---
-        form.addEventListener('submit', async (e) => {
+        // 載入所有初始資料及設定即時監聽器 (Data Load & Snapshot Listeners)
+        function loadInitialData() {
+            if (!isAdmin) return; 
+
+            // 單位 (units) 即時監聽
+            onSnapshot(collection(db, "units"), (snapshot) => {
+                unitData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUnits();
+            }, (error) => {
+                console.error("Error fetching units:", error);
+            });
+            
+            // 班級對應表 (class_map) 即時監聽
+            const classQuery = query(collection(db, "class_map"), orderBy("classId"));
+            onSnapshot(classQuery, (snapshot) => {
+                console.log(`[Class Map] 成功接收到 ${snapshot.docs.length} 筆班級資料。`);
+                renderClassCheckboxes(snapshot.docs.map(doc => doc.data()));
+            }, (error) => {
+                console.error("[Class Map Error] 無法取得班級資料:", error);
+                classCheckboxContainer.innerHTML = `<p class="text-center text-red-500 mt-4">載入班級資料失敗。</p>`;
+            });
+
+            // 即時訊息 (messages) 即時監聽
+            const q = query(collection(db, "messages"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "desc"));
+            onSnapshot(q, (snapshot) => {
+                renderMessages(snapshot.docs);
+            }, (error) => {
+                console.error("Error fetching messages:", error);
+            });
+        }
+        
+        // 渲染發布單位清單 (Render Units)
+        function renderUnits() {
+            unitSelect.innerHTML = '<option value="" disabled selected>請選擇單位</option>'; // 預設選項
+            unitList.innerHTML = '';
+            
+            unitData.forEach(({ id, name }, index) => {
+                // 渲染下拉選單
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                unitSelect.appendChild(option);
+                
+                // 預設選擇第一個單位
+                if (index === 0) {
+                    unitSelect.value = name;
+                }
+
+                // 渲染管理清單
+                const item = document.createElement('div');
+                item.className = 'unit-item';
+                item.innerHTML = `<input type="text" value="${name}" data-id="${id}" class="flex-grow unit-input"><button data-id="${id}" class="remove-unit-btn">✖</button>`;
+                unitList.appendChild(item);
+            });
+            // 為移除按鈕添加事件
+            document.querySelectorAll('.remove-unit-btn').forEach(btn => btn.addEventListener('click', () => btn.parentElement.remove()));
+        }
+        
+        // 渲染班級勾選框 (實現單行簡潔顯示並優化簡稱邏輯)
+        function renderClassCheckboxes(classes) {
+             classCheckboxContainer.innerHTML = '';
+             const grades = {}; // 變數說明: 用於按年段 (key) 分組班級資料 (value) 的物件
+             
+             // 1. 渲染全校廣播選項
+             const allDiv = document.createElement('div');
+             allDiv.className = 'grade-row flex items-center bg-gray-50 p-2 rounded-t-md';
+             allDiv.innerHTML = `
+                <div class="flex items-center font-bold w-full">
+                    <input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4 text-indigo-600 all-class-checkbox">
+                    <label for="class-All" class="ml-2">全校廣播 (All)</label>
+                </div>`;
+             classCheckboxContainer.appendChild(allDiv);
+             
+             if (classes.length === 0) {
+                 const tip = document.createElement('p');
+                 tip.className = 'text-center text-gray-400 mt-4';
+                 tip.textContent = '班級對應表 (class_map) 資料為空。';
+                 classCheckboxContainer.appendChild(tip);
+                 return;
+             }
+             
+             // 2. 依年段分組資料 (資料解析邏輯)
+             classes.forEach(c => {
+                 // c: 來自 Firestore 的單個班級文件資料 (例如: { classId: 'G101', name: '國一知班' })
+                 if (!c.name || !c.classId) return; 
+
+                 let grade = '其他'; // 變數說明: 儲存解析出的年段名稱 (例如: "國一", "高三")
+                 let className = c.name.trim(); // 變數說明: 儲存完整的班級名稱 (例如: "國一知班")
+                 
+                 // 嘗試從名稱開頭提取「年段」
+                 const gradeMatches = c.name.match(/^(國[一二三]|高[一二三]|[\u4e00-\u9fa5]{2,3})/);
+                 
+                 if (gradeMatches) {
+                     grade = gradeMatches[0];
+                     // 移除年段前綴，只保留班級名稱 (例如: "知班", "大愛班")
+                     let remainingName = c.name.substring(grade.length).trim();
+                     if (remainingName.startsWith('-')) {
+                         remainingName = remainingName.substring(1).trim();
+                     }
+                     // className: 最終會是去除年段後的班級名稱
+                     className = remainingName || grade; 
+                 } else if (c.name.includes('-')) {
+                     // 備用邏輯：如果沒有明確的年級前綴，但有連字符，則用連字符分組
+                     const parts = c.name.split('-');
+                     grade = parts[0].trim();
+                     className = parts.slice(1).join('-').trim();
+                     if (!className) className = grade;
+                 }
+                 
+                 if (!className) return;
+
+                 if (!grades[grade]) grades[grade] = { classes: [] };
+                 // 將班級 ID 和去除年段後的簡化名稱存入分組物件
+                 grades[grade].classes.push({ id: c.classId, name: className });
+             });
+             
+             // 3. 渲染每個年段的區塊 (單行簡潔呈現)
+             for (const grade in grades) {
+                const gradeInfo = grades[grade]; // 變數說明: 當前年段下的所有班級清單 { classes: [{ id, name }, ...] }
+                
+                const gradeContainer = document.createElement('div');
+                // 使用 flex 讓年段和班級在同一行
+                gradeContainer.className = "grade-row flex items-start p-2";
+
+                // 1. 生成所有班級的獨立勾選框 HTML
+                const classItemsHTML = gradeInfo.classes.map(c => {
+                    // c: 當前班級物件，包含 { id: 班級在 Firestore 的 classId, name: 經過年段處理後的班級名稱 (例如: "知班" 或 "大愛班") }
+                    const classId = c.id;
+                    let className = c.name; // 例如: "知班", "大愛班", "1班"
+                    let displayChar = '';  // 變數說明: 最終用於顯示在勾選框旁的簡稱 (例如: "知" 或 "愛")
+
+                    // --- 班級簡稱核心邏輯 ---
+                    let baseName = className; // 變數說明: 儲存班級名稱（已移除年段前綴）
+
+                    // A. 移除常見後綴 "班" 或 "組"
+                    if (baseName.endsWith('班') || baseName.endsWith('組')) {
+                         // 例如 "大愛班" 變成 "大愛", "知足班" 變成 "知足"
+                         baseName = baseName.slice(0, -1); 
+                    }
+
+                    // B. 根據簡化後的名稱決定顯示字符
+                    if (baseName === '大愛') {
+                        // 專門處理例外：「大愛」只保留「愛」
+                        displayChar = '愛'; // 變數說明: 如果是「大愛」，則取第二個字「愛」。
+                    } else if (baseName.length > 0) {
+                        // 其他情況：保留第一個字 (例如 "知足" -> "知", "感恩" -> "感")
+                        displayChar = baseName.charAt(0); // 變數說明: 取班級名稱（去除後綴後）的第一個字。
+                    } else {
+                        // 備用：如果名稱處理後為空，使用原始名稱的第一個字
+                        displayChar = className.charAt(0) || '?';
+                    }
+                    // --------------------
+
+                    return `
+                        <div class="class-item flex items-center">
+                            <input id="class-${classId}" name="targetClasses" value="${classId}" type="checkbox" 
+                                class="h-4 w-4 text-indigo-600 class-checkbox" data-grade="${grade}">
+                            <label for="class-${classId}" class="ml-1 text-sm mr-2">${displayChar}</label>
+                        </div>
+                    `;
+                }).join('');
+
+                // 2. 組合年段勾選框和班級勾選框
+                gradeContainer.innerHTML = `
+                    <!-- 年段總勾選框 (Group Checkbox) 佔固定寬度 W-24 確保對齊 -->
+                    <div class="flex items-center font-bold w-24 flex-shrink-0">
+                        <input id="grade-${grade}" type="checkbox" class="h-4 w-4 text-indigo-600 grade-checkbox" data-grade="${grade}">
+                        <label for="grade-${grade}" class="ml-2 text-gray-700">${grade}</label>
+                    </div>
+                    <!-- 班級列表 (使用 flex-wrap 允許在空間不足時自動換行) -->
+                    <div class="flex flex-wrap flex-1">
+                        ${classItemsHTML}
+                    </div>
+                `;
+                classCheckboxContainer.appendChild(gradeContainer);
+             }
+             
+             // 4. 綁定事件監聽器 (處理勾選邏輯)
+
+             // A. 處理年段總勾選 (Grade Checkbox Logic)
+             document.querySelectorAll('.grade-checkbox').forEach(cb => {
+                 cb.addEventListener('change', (e) => {
+                     const grade = e.target.dataset.grade;
+                     // 勾選/取消該年段下的所有班級
+                     document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]`).forEach(classCb => {
+                        classCb.checked = e.target.checked;
+                     });
+                 });
+             });
+             
+             // B. 處理單一班級勾選 (Individual Class Checkbox Logic)
+             document.querySelectorAll('input.class-checkbox').forEach(cb => {
+                 cb.addEventListener('change', (e) => {
+                     const grade = e.target.dataset.grade;
+                     const gradeCheckbox = document.getElementById(`grade-${grade}`);
+                     // 檢查該年段下所有班級的狀態
+                     const totalClasses = document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]`).length;
+                     const checkedClasses = document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]:checked`).length;
+
+                     // 如果所有班級都被勾選，則勾選年段總勾選框
+                     gradeCheckbox.checked = (totalClasses === checkedClasses);
+                 });
+             });
+
+             // C. 處理全校廣播勾選 (All Checkbox Logic)
+             document.getElementById('class-All').addEventListener('change', (e) => {
+                 const isChecked = e.target.checked;
+                 // 勾選/取消所有年段總勾選框和所有單一班級勾選框
+                 document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = isChecked);
+                 document.querySelectorAll('input.class-checkbox').forEach(cb => cb.checked = isChecked);
+             });
+        }
+
+        // 渲染即時訊息列表 (未過期訊息)
+        function renderMessages(docs) {
+            messageList.innerHTML = '';
+            if (docs.length === 0) {
+                 messageList.innerHTML = `<p class="text-gray-500 text-center">沒有未過期的訊息。</p>`;
+            }
+            docs.forEach(doc => {
+                const msg = { id: doc.id, ...doc.data() };
+                const card = document.createElement('div');
+                card.className = `p-4 border rounded-md ${msg.isEmergency ? 'bg-red-50 border-red-200' : 'bg-gray-50'}`;
+                
+                let expiresDate = msg.expiresAt instanceof Date ? msg.expiresAt : msg.expiresAt.toDate();
+                let timeLeft = Math.round((expiresDate - new Date()) / (1000 * 60 * 60));
+                if (timeLeft < 0) timeLeft = 0; 
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-bold">${msg.unit}</p>
+                            <p class="text-sm mt-1">${msg.content}</p>
+                        </div>
+                        <div class="flex gap-2">
+                             <button class="edit-btn text-sm text-blue-500" data-id="${msg.id}">編輯</button>
+                             <button class="delete-btn text-sm text-red-500" data-id="${msg.id}">刪除</button>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2 pt-2 border-t">
+                        發布給: ${msg.targetClasses.join(', ')} | ${msg.isEmergency ? '<span class="font-bold text-red-600">緊急</span> |' : ''} 剩餘: ${timeLeft} 小時
+                    </div>
+                `;
+                messageList.appendChild(card);
+            });
+            
+            // 綁定編輯和刪除按鈕的事件
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', () => handleEdit(btn.dataset.id)));
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => handleDelete(btn.dataset.id)));
+        }
+        
+        // 單位儲存主邏輯 (處理新增、修改和刪除 units 集合中的文件)
+        async function saveUnitsChanges() {
+            const batch = writeBatch(db);
+            const newUnitElements = unitList.querySelectorAll('input');
+            const currentUnitNames = new Set();
+            let hasError = false;
+
+            // 1. 處理新增和修改
+            newUnitElements.forEach(input => {
+                const name = input.value.trim();
+                if (!name) { console.error("單位名稱不可為空！"); hasError = true; return; }
+                if (currentUnitNames.has(name)) { console.error(`單位名稱 "${name}" 重複！`); hasError = true; return; }
+                currentUnitNames.add(name);
+                
+                const id = input.dataset.id;
+                if (id) { 
+                    batch.update(doc(db, "units", id), { name }); 
+                } else { 
+                    batch.set(doc(collection(db, "units")), { name }); 
+                }
+            });
+
+            if (hasError) return;
+
+            // 2. 處理刪除 (與原始清單比較，找出被移除的單位)
+            const originalNames = new Set(unitData.map(u => u.name));
+            originalNames.forEach(name => {
+                if (!currentUnitNames.has(name)) {
+                    const unitToDelete = unitData.find(u => u.name === name);
+                    if (unitToDelete) batch.delete(doc(db, "units", unitToDelete.id));
+                }
+            });
+            
+            try {
+                await batch.commit();
+                console.log("單位列表更新成功！"); 
+            } catch (e) { 
+                console.error("單位列表更新失敗，請檢查 Firestore Security Rules:", e);
+            }
+        }
+
+        // ----------------------------------------------------
+        // 核心事件監聽
+        // ----------------------------------------------------
+
+        // 登入/登出事件
+        document.getElementById('login-btn').addEventListener('click', () => signInWithPopup(auth, provider));
+        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+
+        // 新增單位按鈕事件
+        addUnitBtn.addEventListener('click', () => {
+            const item = document.createElement('div');
+            item.className = 'unit-item';
+            item.innerHTML = `<input type="text" placeholder="新單位名稱" data-id="" class="flex-grow unit-input"><button class="remove-unit-btn">✖</button>`; 
+            unitList.appendChild(item);
+            item.querySelector('button').addEventListener('click', () => item.remove());
+            item.querySelector('input').focus(); 
+        });
+        
+        // 單位管理區塊：按鈕點擊事件
+        saveUnitsBtn.addEventListener('click', saveUnitsChanges);
+
+        // 單位管理區塊：Enter 鍵事件監聽
+        unitList.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                e.preventDefault(); 
+                saveUnitsChanges(); 
+            }
+        });
+
+
+        // 廣播發布表單提交事件 (發布或更新 messages 集合中的文件)
+        document.getElementById('broadcast-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const title = document.getElementById('title').value.trim();
-            const content = document.getElementById('content').value.trim();
             const unit = unitSelect.value;
-            const targets = Array.from(document.querySelectorAll('input[name="target"]:checked')).map(cb => cb.value);
-            
-            if (!title || !content || !unit || targets.length === 0) {
-                console.error('所有欄位 (標題、內容、處室、對象) 均為必填！');
-                return;
+            const content = document.getElementById('message-content').value;
+            const isEmergency = document.getElementById('is-emergency').checked;
+            const durationHours = parseInt(document.querySelector('input[name="duration"]:checked').value);
+            // 收集所有被勾選的班級 ID
+            const selectedClasses = Array.from(document.querySelectorAll('input[name="targetClasses"]:checked')).map(cb => cb.value);
+
+            if (!unit || !content.trim() || selectedClasses.length === 0) {
+                console.error('發布單位、訊息內容和廣播對象皆不可為空！'); return;
             }
 
-            let expiresAt = new Date();
-            const duration = document.querySelector('input[name="duration"]:checked').value;
-            
-            const hours = parseInt(duration);
-            expiresAt.setHours(expiresAt.getHours() + hours);
-
             const messageData = {
-                title: title,
-                content: content,
-                unit: unit,
-                targets: targets,
-                expiresAt: expiresAt,
-                // 只有新增時才設定 createdAt
-                ...(editModeDocId.value ? {} : { createdAt: new Date() }) 
+                unit, content, isEmergency,
+                targetClasses: selectedClasses,
+                author: { name: auth.currentUser.displayName, email: auth.currentUser.email },
+                createdAt: serverTimestamp(),
+                // 計算過期時間
+                expiresAt: new Date(Date.now() + durationHours * 60 * 60 * 1000) 
             };
             
             try {
                 const docId = editModeDocId.value;
-                if (docId) {
-                    // 編輯模式 (使用原始版本路徑)
+                if (docId) { 
+                    // 執行更新
                     await updateDoc(doc(db, "messages", docId), messageData);
-                    console.log("訊息已成功更新！");
-                } else {
-                    // 新增模式 (使用原始版本路徑)
-                    await setDoc(doc(getMessageCollectionRef()), messageData);
-                    console.log("新訊息已成功發布！");
+                    console.log('公告更新成功！');
+                } else { 
+                    // 執行新增
+                    await addDoc(collection(db, "messages"), messageData);
+                    console.log('公告發布成功！');
                 }
-                resetForm();
-            } catch (error) {
-                console.error("發布/更新訊息失敗:", error);
+                resetForm(); // 操作完成後重設表單
+            } catch (error) { 
+                console.error(`操作失敗: ${error.message}`); 
             }
         });
 
-        // 取消編輯按鈕 (邏輯不變)
+        // 取消編輯按鈕事件
         cancelEditBtn.addEventListener('click', resetForm);
-
-        // --- 程式碼區塊 3: 載入資料庫訊息並渲染 (右側欄位邏輯 - 處室分組與 3 欄) ---
-        function setupMessageListener() {
-            const messagesListDiv = document.getElementById('messages-list');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            const noMessagesIndicator = document.getElementById('no-messages-indicator');
-
-            const q = query(getMessageCollectionRef());
-            
-            onSnapshot(q, (snapshot) => {
-                loadingIndicator.classList.add('hidden');
+        
+        // 處理編輯按鈕點擊事件 (載入資料到表單並設定勾選狀態)
+        async function handleEdit(id) {
+            const docSnap = await getDoc(doc(db, "messages", id));
+            if (docSnap.exists()) {
+                const msg = docSnap.data();
                 
-                const messages = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    // 過濾掉已過期的訊息
-                    if (data.expiresAt && data.expiresAt.toDate() > new Date()) {
-                        messages.push({ id: doc.id, ...data });
+                // 填充基本欄位
+                editModeDocId.value = id;
+                document.querySelector('#unit-select').value = msg.unit;
+                document.querySelector('#message-content').value = msg.content;
+                document.querySelector('#is-emergency').checked = msg.isEmergency;
+                
+                // 1. 重設所有勾選狀態
+                document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false);
+                document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = false);
+                document.getElementById('class-All').checked = false;
+
+                // 2. 根據儲存的 targetClasses 勾選對應的班級
+                msg.targetClasses.forEach(classId => {
+                    const cb = document.querySelector(`input[value="${classId}"]`);
+                    if(cb) cb.checked = true;
+                });
+                
+                // 3. 檢查並勾選年段總勾選框 (若該年段所有班級都被勾選)
+                document.querySelectorAll('.grade-checkbox').forEach(gradeCb => {
+                    const grade = gradeCb.dataset.grade;
+                    const classCbs = document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]`);
+                    const totalClasses = classCbs.length;
+                    const checkedClasses = Array.from(classCbs).filter(cb => cb.checked).length;
+                    if (totalClasses > 0 && totalClasses === checkedClasses) {
+                        gradeCb.checked = true;
                     }
                 });
 
-                if (messages.length === 0) {
-                    noMessagesIndicator.classList.remove('hidden');
-                    messagesListDiv.innerHTML = '';
-                    messagesListDiv.appendChild(noMessagesIndicator);
-                    return;
+                // 4. 檢查並勾選全校廣播
+                const allCheckbox = document.getElementById('class-All');
+                const totalAllClasses = document.querySelectorAll('input.class-checkbox').length;
+                const checkedAllClasses = document.querySelectorAll('input.class-checkbox:checked').length;
+                if (totalAllClasses > 0 && totalAllClasses === checkedAllClasses) {
+                    allCheckbox.checked = true;
+                } else if (msg.targetClasses.includes('All')) {
+                    // 如果 targetClasses 中包含 'All' 字串 (代表發布時選了全校廣播)
+                    allCheckbox.checked = true;
                 }
+
+
+                // 5. 設定持續時間 Radio Button
+                let expiresDate = msg.expiresAt instanceof Date ? msg.expiresAt : msg.expiresAt.toDate();
+                let createdDate = msg.createdAt.toDate();
+                const diffMs = expiresDate.getTime() - createdDate.getTime();
+                const diffHours = Math.round(diffMs / (1000 * 60 * 60));
                 
-                noMessagesIndicator.classList.add('hidden');
-
-                // A. 雙重排序邏輯: 先依處室名稱排序，相同處室再依發布時間倒序 (最新在前)
-                messages.sort((a, b) => {
-                    // 1. 處室名稱的比較 (中文排序)
-                    const unitComparison = a.unit.localeCompare(b.unit, 'zh-TW'); 
-                    if (unitComparison !== 0) {
-                        return unitComparison;
-                    }
-                    // 2. 相同處室下，依發布時間 (createdAt) 倒序 (最新者在前)
-                    const timeA = a.createdAt ? a.createdAt.toDate().getTime() : 0;
-                    const timeB = b.createdAt ? b.createdAt.toDate().getTime() : 0;
-                    return timeB - timeA; 
-                });
-
-                // B. 將排序好的訊息依照處室名稱進行分組
-                const groupedMessages = messages.reduce((acc, message) => {
-                    const unit = message.unit;
-                    if (!acc[unit]) {
-                        acc[unit] = [];
-                    }
-                    acc[unit].push(message);
-                    return acc;
-                }, {});
-
-                // C. 取得分組後的處室名稱陣列
-                const sortedUnits = Object.keys(groupedMessages);
+                let durationValue = '8'; 
+                if (Math.abs(diffHours - 24) < 1) durationValue = '24'; 
+                else if (Math.abs(diffHours - 48) < 1) durationValue = '48'; 
                 
-                messagesListDiv.innerHTML = ''; // 清空列表
+                const durationInput = document.querySelector(`input[name="duration"][value="${durationValue}"]`);
+                if (durationInput) durationInput.checked = true;
 
-                // D. 渲染處室分組標題與 3 欄網格
-                sortedUnits.forEach(unit => {
-                    const unitGroupContainer = document.createElement('div');
-                    // 視覺優化: 為每個處室群組添加一個明顯的容器
-                    unitGroupContainer.className = 'bg-white p-4 rounded-xl shadow-md border-t-4 border-indigo-500 mb-6'; 
-                    
-                    // 處室標題
-                    const titleElement = document.createElement('h3');
-                    titleElement.className = 'text-xl font-bold text-indigo-700 mb-4';
-                    titleElement.textContent = `${unit} 訊息 (${groupedMessages[unit].length})`;
-                    unitGroupContainer.appendChild(titleElement);
-                    
-                    // 3 欄式網格容器
-                    const grid = document.createElement('div');
-                    grid.className = 'messages-grid'; 
-
-                    // 渲染該處室下的所有訊息卡片
-                    groupedMessages[unit].forEach(message => {
-                        grid.innerHTML += createMessageCardHTML(message);
-                    });
-                    
-                    unitGroupContainer.appendChild(grid);
-                    messagesListDiv.appendChild(unitGroupContainer); 
-                });
-
-                // E. 重新綁定事件
-                messages.forEach(message => {
-                    const editBtn = document.getElementById(`edit-btn-${message.id}`);
-                    const deleteBtn = document.getElementById(`delete-btn-${message.id}`);
-                    if (editBtn) editBtn.addEventListener('click', () => handleEdit(message.id, message));
-                    if (deleteBtn) deleteBtn.addEventListener('click', () => handleDelete(message.id));
-                });
-
-
-            }, (error) => {
-                console.error("監聽訊息失敗:", error);
-                loadingIndicator.textContent = '載入訊息時發生錯誤。';
-                loadingIndicator.classList.remove('hidden');
-            });
+                cancelEditBtn.classList.remove('hidden');
+                window.scrollTo(0, 0); // 滾動到頂部方便編輯
+            }
         }
         
-        // --- 程式碼區塊 4: 訊息卡片 HTML 產生函式 (為分組準備) ---
-        function createMessageCardHTML(message) {
-            const formattedDate = message.expiresAt.toDate().toLocaleString('zh-TW', {
-                year: 'numeric',
-                month: 'numeric',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            // 廣播對象徽章
-            const targetBadges = message.targets.map(target => 
-                `<span class="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold px-2 py-0.5 rounded-full">${target}</span>`
-            ).join('');
-
-            return `
-                <div id="message-card-${message.id}" class="bg-white p-4 rounded-lg shadow-md border border-gray-100 transition duration-150 ease-in-out hover:shadow-lg h-full flex flex-col justify-between">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="text-md font-bold text-gray-900">${message.title}</h4>
-                            <span class="text-xs text-red-500 font-medium whitespace-nowrap">
-                                ${message.unit}
-                            </span>
-                        </div>
-                        
-                        <p class="text-sm text-gray-600 mb-3 line-clamp-3">${message.content}</p>
-
-                        <div class="mb-3 flex flex-wrap gap-1">
-                            ${targetBadges}
-                        </div>
-                    </div>
-
-                    <div class="mt-auto pt-2">
-                        <p class="text-xs text-gray-500 mb-3">
-                            過期時間: ${formattedDate}
-                        </p>
-
-                        <div class="flex justify-end space-x-2">
-                            <button id="edit-btn-${message.id}" type="button" 
-                                    class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                                編輯
-                            </button>
-                            <button id="delete-btn-${message.id}" type="button" 
-                                    class="text-sm text-red-600 hover:text-red-800 font-medium">
-                                刪除
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // 處理編輯按鈕點擊事件 (邏輯還原至原始版本)
-        function handleEdit(id, message) {
-            const titleInput = document.getElementById('title');
-            const contentInput = document.getElementById('content');
-            
-            titleInput.value = message.title;
-            contentInput.value = message.content;
-            unitSelect.value = message.unit;
-            editModeDocId.value = id;
-
-            document.querySelectorAll('input[name="target"]').forEach(cb => {
-                cb.checked = message.targets.includes(cb.value);
-            });
-
-            const now = new Date();
-            const expiresAtDate = message.expiresAt.toDate();
-            const diffTime = expiresAtDate.getTime() - now.getTime();
-            const diffHours = diffTime / (1000 * 60 * 60);
-
-            let durationValue = '8'; 
-            if (Math.abs(diffHours - 24) < 1) durationValue = '24'; 
-            else if (Math.abs(diffHours - 48) < 1) durationValue = '48'; 
-                
-            const durationInput = document.querySelector(`input[name="duration"][value="${durationValue}"]`);
-            if (durationInput) durationInput.checked = true;
-
-            cancelEditBtn.classList.remove('hidden');
-            window.scrollTo(0, 0); // 滾動到頂部方便編輯
-        }
-
-        // 處理刪除按鈕點擊事件 (邏輯還原至原始版本路徑)
+        // 處理刪除按鈕點擊事件 (將 expiresAt 設為當前時間，使其立即過期)
         async function handleDelete(id) {
-            // 由於不能使用 alert/confirm，此處直接執行 updateDoc
             await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
             console.log("訊息已標記為過期，將自動從列表中消失。");
         }
         
-        // 重設表單狀態 (邏輯還原至原始版本)
+        // 重設表單狀態
         function resetForm() {
             document.getElementById('broadcast-form').reset();
             // 重設所有勾選框狀態
@@ -450,15 +678,15 @@
             document.querySelector('input[name="duration"][value="8"]').checked = true; 
             editModeDocId.value = '';
             cancelEditBtn.classList.add('hidden');
-            unitSelect.value = ''; // 重設單位選擇
+            
+            // 重設單位選擇為第一個
+            if (unitData.length > 0) {
+                 unitSelect.value = unitData[0].name;
+            } else {
+                 unitSelect.value = '';
+            }
         }
 
-        // --- 程式碼區塊 5: 應用程式啟動流程 ---
-        authenticate().then(() => {
-            loadOptions();
-            setupMessageListener();
-        });
-        
     </script>
 </body>
 </html>
