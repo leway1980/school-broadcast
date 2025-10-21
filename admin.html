@@ -105,24 +105,31 @@
                     <!-- 功能: 讓使用者選擇廣播訊息的有效期限 (8小時, 1天, 2天)。 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">持續時間</label>
-                        <div class="mt-1 flex space-x-2 text-sm font-medium">
-                             <!-- 8小時 (預設勾選，加上 checked 屬性) -->
-                             <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked>
-                             <label for="dur_8h" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
-                                text-gray-700 hover:bg-gray-100 
-                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">8小時</label>
+                        <!-- 關鍵修改: 調整為顯示原生的 Radio Button 控制項 -->
+                        <div class="mt-1 flex space-x-4 text-sm font-medium">
+                             <!-- 8小時 (預設勾選) -->
+                             <div class="flex items-center space-x-1">
+                                <!-- 移除 hidden peer，使用原生 radio 類別，並保留 checked -->
+                                <input type="radio" id="dur_8h" name="duration" value="8" class="h-4 w-4 text-indigo-600 border-gray-300" checked>
+                                <!-- 移除所有 peer-checked 樣式，只保留 label 文本 -->
+                                <label for="dur_8h" class="text-gray-700 cursor-pointer">8小時</label>
+                             </div>
                              
-                             <!-- 1天 (沒有 checked 屬性) -->
-                             <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer">
-                             <label for="dur_1d" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
-                                text-gray-700 hover:bg-gray-100 
-                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">1天</label>
+                             <!-- 1天 -->
+                             <div class="flex items-center space-x-1">
+                                <!-- 移除 hidden peer，使用原生 radio 類別 -->
+                                 <input type="radio" id="dur_1d" name="duration" value="24" class="h-4 w-4 text-indigo-600 border-gray-300">
+                                 <!-- 移除所有 peer-checked 樣式，只保留 label 文本 -->
+                                 <label for="dur_1d" class="text-gray-700 cursor-pointer">1天</label>
+                             </div>
                              
-                             <!-- 2天 (沒有 checked 屬性) -->
-                             <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer">
-                             <label for="dur_2d" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
-                                text-gray-700 hover:bg-gray-100 
-                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">2天</label>
+                             <!-- 2天 -->
+                             <div class="flex items-center space-x-1">
+                                <!-- 移除 hidden peer，使用原生 radio 類別 -->
+                                 <input type="radio" id="dur_2d" name="duration" value="48" class="h-4 w-4 text-indigo-600 border-gray-300">
+                                 <!-- 移除所有 peer-checked 樣式，只保留 label 文本 -->
+                                 <label for="dur_2d" class="text-gray-700 cursor-pointer">2天</label>
+                             </div>
                         </div>
                     </div>
                 </div>
