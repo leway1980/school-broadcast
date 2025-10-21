@@ -21,6 +21,10 @@
         /* 廣播對象 (班級) 依年段分組的行樣式 */
         .grade-row { border-bottom: 1px dashed #e5e7eb; padding: 8px 0; }
         .grade-row:last-child { border-bottom: none; }
+        /* 班級列表網格，用於排版班級勾選框 */
+        .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 0.5rem; padding-left: 20px;}
+        /* 每個班級勾選框的容器 */
+        .class-item { display: flex; align-items: center; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -93,7 +97,7 @@
                 <!-- 廣播對象 (班級選擇區塊) -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700">廣播對象</label>
-                    <div id="class-checkbox-container" class="mt-2 p-4 border rounded-md max-h-60 overflow-y-auto space-y-1">
+                    <div id="class-checkbox-container" class="mt-2 p-4 border rounded-md max-h-96 overflow-y-auto space-y-1">
                         <!-- 班級清單將由 JavaScript 渲染並依年段分組 -->
                         <p class="text-center text-gray-400 mt-4">載入班級資料中...</p>
                     </div>
@@ -221,7 +225,6 @@
             });
             
             // 班級對應表 (class_map) 即時監聽
-            // 由於 Security Rules 允許所有人讀取 (allow read: if true;)，問題很可能在解析
             const classQuery = query(collection(db, "class_map"), orderBy("classId"));
             onSnapshot(classQuery, (snapshot) => {
                 console.log(`[Class Map] 成功接收到 ${snapshot.docs.length} 筆班級資料。`);
@@ -267,7 +270,7 @@
             document.querySelectorAll('.remove-unit-btn').forEach(btn => btn.addEventListener('click', () => btn.parentElement.remove()));
         }
         
-        // 渲染班級勾選框 (Render Class Checkboxes - 修正解析邏輯)
+        // 渲染班級勾選框 (Render Class Checkboxes - 實現獨立班級勾選)
         function renderClassCheckboxes(classes) {
              classCheckboxContainer.innerHTML = '';
              const grades = {};
@@ -275,7 +278,11 @@
              // 1. 渲染全校廣播選項
              const allDiv = document.createElement('div');
              allDiv.className = 'grade-row flex items-center bg-gray-50 p-2 rounded-t-md';
-             allDiv.innerHTML = `<div class="flex items-center font-bold w-full"><input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4 text-indigo-600"><label for="class-All" class="ml-2">全校廣播</label></div>`;
+             allDiv.innerHTML = `
+                <div class="flex items-center font-bold w-full">
+                    <input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4 text-indigo-600 all-class-checkbox">
+                    <label for="class-All" class="ml-2">全校廣播</label>
+                </div>`;
              classCheckboxContainer.appendChild(allDiv);
              
              if (classes.length === 0) {
@@ -286,27 +293,23 @@
                  return;
              }
              
-             // 2. 依年段分組資料 (優化分組邏輯)
+             // 2. 依年段分組資料 (使用更強健的解析邏輯)
              classes.forEach(c => {
                  if (!c.name || !c.classId) return; 
 
-                 let grade = '其他'; // 預設分組
-                 let className = c.name.trim(); // 預設班級名稱為完整名稱
+                 let grade = '其他'; 
+                 let className = c.name.trim(); 
                  
-                 // 嘗試從名稱開頭提取「年段」
-                 // 假設年段是 "國一", "國二", "國三", "高一", "高二", "高三" 或類似的結構
                  const gradeMatches = c.name.match(/^(國[一二三]|高[一二三]|[\u4e00-\u9fa5]{2,3})/);
                  
                  if (gradeMatches) {
                      grade = gradeMatches[0];
-                     // 移除年段部分，並嘗試處理連字符
                      let remainingName = c.name.substring(grade.length).trim();
                      if (remainingName.startsWith('-')) {
                          remainingName = remainingName.substring(1).trim();
                      }
-                     className = remainingName || grade; // 如果沒有剩餘名稱，則班級名稱設為年段名
+                     className = remainingName || grade; 
                  } else if (c.name.includes('-')) {
-                     // 如果沒有明確的年級前綴，但有連字符，則用連字符分組
                      const parts = c.name.split('-');
                      grade = parts[0].trim();
                      className = parts.slice(1).join('-').trim();
@@ -317,42 +320,73 @@
 
                  if (!grades[grade]) grades[grade] = { classes: [], names: [] };
                  grades[grade].classes.push({ id: c.classId, name: className });
-                 grades[grade].names.push(className);
              });
              
-             // 3. 渲染每個年段的簡潔行 (Render Grade Rows)
+             // 3. 渲染每個年段的區塊
              for (const grade in grades) {
                 const gradeInfo = grades[grade];
                 
-                const gradeDiv = document.createElement('div');
-                gradeDiv.className = "grade-row flex items-center p-2 hover:bg-gray-100";
-                
-                // 實際功能的隱藏 Checkboxes
-                const hiddenInputsHTML = gradeInfo.classes.map(c => 
-                     `<input id="class-${c.id}" name="targetClasses" value="${c.id}" type="checkbox" class="class-checkbox-${grade} hidden">`
-                ).join('');
-                
-                // 年段顯示和總體勾選框
-                gradeDiv.innerHTML = `
-                    <div class="flex items-center">
+                const gradeContainer = document.createElement('div');
+                gradeContainer.className = "grade-row p-2";
+
+                // 年段總體勾選框 (Group Checkbox)
+                gradeContainer.innerHTML = `
+                    <div class="flex items-center mb-2">
                         <input id="grade-${grade}" type="checkbox" class="h-4 w-4 text-indigo-600 grade-checkbox" data-grade="${grade}">
-                        <label for="grade-${grade}" class="ml-2 font-semibold text-gray-700 w-12">${grade}</label>
+                        <label for="grade-${grade}" class="ml-2 font-bold text-gray-700">${grade}</label>
                     </div>
-                    <!-- 顯示所有班級名稱 -->
-                    <div class="flex-1 text-sm text-gray-600 ml-4 space-x-2">
-                        ${gradeInfo.names.map(name => `<span class="whitespace-nowrap">${name}</span>`).join(' ')}
+                    <div id="class-grid-${grade}" class="class-grid">
+                        <!-- 班級獨立勾選框將在此處渲染 -->
                     </div>
-                    <div class="hidden-class-inputs">${hiddenInputsHTML}</div>
                 `;
-                classCheckboxContainer.appendChild(gradeDiv);
+                classCheckboxContainer.appendChild(gradeContainer);
+
+                // 渲染班級獨立勾選框 (Individual Checkboxes)
+                const classGrid = document.getElementById(`class-grid-${grade}`);
+                gradeInfo.classes.forEach(c => {
+                    const classItem = document.createElement('div');
+                    classItem.className = 'class-item text-sm whitespace-nowrap';
+                    classItem.innerHTML = `
+                        <input id="class-${c.id}" name="targetClasses" value="${c.id}" type="checkbox" 
+                               class="h-4 w-4 text-indigo-600 class-checkbox" data-grade="${grade}">
+                        <label for="class-${c.id}" class="ml-1">${c.name}</label>
+                    `;
+                    classGrid.appendChild(classItem);
+                });
              }
              
-             // 年段總體勾選事件
+             // 4. 綁定事件監聽器
+
+             // A. 處理年段總勾選 (Group Checkbox Logic)
              document.querySelectorAll('.grade-checkbox').forEach(cb => {
                  cb.addEventListener('change', (e) => {
                      const grade = e.target.dataset.grade;
-                     document.querySelectorAll(`.class-checkbox-${grade}`).forEach(classCb => classCb.checked = e.target.checked);
+                     // 勾選/取消該年段下的所有班級
+                     document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]`).forEach(classCb => {
+                        classCb.checked = e.target.checked;
+                     });
                  });
+             });
+             
+             // B. 處理單一班級勾選 (Individual Checkbox Logic)
+             document.querySelectorAll('input.class-checkbox').forEach(cb => {
+                 cb.addEventListener('change', (e) => {
+                     const grade = e.target.dataset.grade;
+                     const gradeCheckbox = document.getElementById(`grade-${grade}`);
+                     const totalClasses = document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]`).length;
+                     const checkedClasses = document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]:checked`).length;
+
+                     // 如果所有班級都被勾選，則勾選年段總勾選框
+                     gradeCheckbox.checked = (totalClasses === checkedClasses);
+                 });
+             });
+
+             // C. 處理全校廣播勾選
+             document.getElementById('class-All').addEventListener('change', (e) => {
+                 const isChecked = e.target.checked;
+                 // 勾選/取消所有年段總勾選框和所有單一班級勾選框
+                 document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = isChecked);
+                 document.querySelectorAll('input.class-checkbox').forEach(cb => cb.checked = isChecked);
              });
         }
 
@@ -471,6 +505,7 @@
             const content = document.getElementById('message-content').value;
             const isEmergency = document.getElementById('is-emergency').checked;
             const durationHours = parseInt(document.querySelector('input[name="duration"]:checked').value);
+            // 修正：這裡只需要抓取所有被勾選的班級 ID
             const selectedClasses = Array.from(document.querySelectorAll('input[name="targetClasses"]:checked')).map(cb => cb.value);
 
             if (!unit || !content.trim() || selectedClasses.length === 0) {
@@ -514,22 +549,38 @@
                 document.querySelector('#message-content').value = msg.content;
                 document.querySelector('#is-emergency').checked = msg.isEmergency;
                 
+                // 重設所有勾選狀態
                 document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false);
                 document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = false);
+                
+                // 根據儲存的 targetClasses 勾選對應的班級
                 msg.targetClasses.forEach(classId => {
                     const cb = document.querySelector(`input[value="${classId}"]`);
                     if(cb) cb.checked = true;
                 });
                 
+                // 檢查是否需要勾選年段總勾選框 (若該年段所有班級都被勾選)
                 document.querySelectorAll('.grade-checkbox').forEach(gradeCb => {
                     const grade = gradeCb.dataset.grade;
-                    const classCbs = document.querySelectorAll(`.class-checkbox-${grade}`);
+                    const classCbs = document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]`);
                     const totalClasses = classCbs.length;
                     const checkedClasses = Array.from(classCbs).filter(cb => cb.checked).length;
                     if (totalClasses > 0 && totalClasses === checkedClasses) {
                         gradeCb.checked = true;
                     }
                 });
+
+                // 檢查是否需要勾選全校廣播
+                const allCheckbox = document.getElementById('class-All');
+                const totalAllClasses = document.querySelectorAll('input.class-checkbox').length;
+                const checkedAllClasses = document.querySelectorAll('input.class-checkbox:checked').length;
+                if (totalAllClasses > 0 && totalAllClasses === checkedAllClasses) {
+                    allCheckbox.checked = true;
+                } else if (msg.targetClasses.includes('All')) {
+                    // 如果是針對 'All' 這個特定的 value 進行廣播
+                    allCheckbox.checked = true;
+                }
+
 
                 let expiresDate = msg.expiresAt instanceof Date ? msg.expiresAt : msg.expiresAt.toDate();
                 let createdDate = msg.createdAt.toDate();
@@ -557,6 +608,7 @@
         // 重設表單狀態 (略，與上次相同)
         function resetForm() {
             document.getElementById('broadcast-form').reset();
+            // 重設所有勾選框狀態
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
             document.querySelector('input[name="duration"][value="8"]').checked = true; 
             editModeDocId.value = '';
