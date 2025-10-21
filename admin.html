@@ -70,33 +70,50 @@
                 
                 <!-- 發布單位與持續時間區塊 -->
                 <div class="flex gap-4">
-                    <!-- 發布單位選擇 -->
-                    <div class="flex-grow">
+                    
+                    <!-- 發布單位選擇 (新增外框 p-3 border rounded-lg) -->
+                    <div class="flex-grow p-3 border border-gray-300 rounded-lg shadow-sm">
                         <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
                         <select id="unit-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md">
                             <option value="" disabled selected>請選擇單位</option>
                         </select>
                     </div>
                     
-                    <!-- 持續時間選擇 -->
+                    <!-- 持續時間選擇 (優化樣式，確保只有選中才亮) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">持續時間</label>
-                        <div class="mt-1 flex space-x-2">
-                             <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked><label for="dur_8h" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">8小時</label>
-                             <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer"><label for="dur_1d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">1天</label>
-                             <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer"><label for="dur_2d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">2天</label>
+                        <div class="mt-1 flex space-x-2 text-sm font-medium">
+                             <!-- 預設 8 小時為選中狀態 -->
+                             <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked>
+                             <label for="dur_8h" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
+                                text-gray-700 hover:bg-gray-100 
+                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">8小時</label>
+                             
+                             <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer">
+                             <label for="dur_1d" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
+                                text-gray-700 hover:bg-gray-100 
+                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">1天</label>
+                             
+                             <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer">
+                             <label for="dur_2d" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
+                                text-gray-700 hover:bg-gray-100 
+                                peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">2天</label>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 單位管理區塊 -->
+                <!-- 單位管理區塊 (新增外框 p-4 border rounded-lg) -->
                 <details id="unit-management">
-                    <summary class="cursor-pointer text-blue-600 hover:underline">管理發布單位 ▾</summary>
-                    <div id="unit-list" class="mt-2 p-4 border rounded-md space-y-2">
-                        <!-- 單位清單將由 JavaScript 渲染 -->
+                    <summary class="cursor-pointer text-blue-600 hover:underline font-semibold">管理發布單位 ▾</summary>
+                    <div class="p-4 border border-gray-300 rounded-lg mt-2 space-y-2">
+                         <div id="unit-list" class="space-y-2">
+                             <!-- 單位清單將由 JavaScript 渲染 -->
+                         </div>
+                         <div class="flex justify-between items-center pt-2 border-t mt-2">
+                             <button type="button" id="add-unit-btn" class="text-sm text-green-600 hover:text-green-700">✚ 新增單位</button>
+                             <button type="button" id="save-units-btn" class="text-sm text-white bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded shadow-sm">儲存所有變更</button>
+                         </div>
                     </div>
-                    <button type="button" id="add-unit-btn" class="mt-2 text-sm text-green-600">✚ 新增單位</button>
-                    <button type="button" id="save-units-btn" class="mt-2 text-sm text-white bg-blue-500 px-3 py-1 rounded">儲存所有變更</button>
                 </details>
                 
                 <!-- 廣播對象 (班級選擇區塊) -->
@@ -348,7 +365,7 @@
                     let className = c.name; // 例如: "知班", "大愛班", "1班"
                     let displayChar = '';  // 變數說明: 最終用於顯示在勾選框旁的簡稱 (例如: "知" 或 "愛")
 
-                    // --- 班級簡稱核心邏輯 (已修正) ---
+                    // --- 班級簡稱核心邏輯 ---
                     let baseName = className; // 變數說明: 儲存班級名稱（已移除年段前綴）
 
                     // A. 移除常見後綴 "班" 或 "組"
