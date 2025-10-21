@@ -55,17 +55,16 @@
                             placeholder="輸入廣播訊息內容..."></textarea>
                     </div>
 
-                    <!-- START: 變更 1. UI 調整，發布單位高度變窄，並把字樣拿到框的上方 -->
+                    <!-- 發布單位 (原版，準備修改) -->
                     <div>
-                        <label for="unit" class="block text-sm font-medium text-gray-700 mb-1">發布單位</label>
+                        <label for="unit" class="block text-sm font-medium text-gray-700">發布單位 (必選)</label>
                         <select id="unit" name="unit" required
-                            class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                             <option value="">選擇發布單位</option>
                             <!-- 選項將由 JavaScript 動態載入 -->
                         </select>
                     </div>
-                    <!-- END: 變更 1. -->
-
+                    
                     <!-- 截止時間 (Duration) -->
                     <div>
                         <span class="block text-sm font-medium text-gray-700 mb-2">廣播效期 (必選)</span>
@@ -149,7 +148,7 @@
             doc, collection, 
             addDoc, setDoc, updateDoc, deleteDoc, 
             onSnapshot, query, where, orderBy, limit,
-            serverTimestamp 
+            serverTimestamp, getDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- 全域變數初始化 (由 Canvas 提供) ---
@@ -221,11 +220,7 @@
                 option.textContent = unit.name;
                 unitSelect.appendChild(option);
             });
-            // 在選項更新後，重新載入最近使用的單位 (變更 2 的一部分)
-            const lastUnit = localStorage.getItem('lastBroadcastUnit');
-            if (lastUnit) {
-                unitSelect.value = lastUnit;
-            }
+            // 【未來要加載最近單位邏輯在這裡】
         }
 
         function renderUnitList(units) {
@@ -383,19 +378,9 @@
                 let durationValue = '8'; 
                 if (Math.abs(diffHours - 24) < 1) durationValue = '24'; 
                 else if (Math.abs(diffHours - 48) < 1) durationValue = '48'; 
-                else if (diffHours > 48) durationValue = 'custom';
-
+                
                 const durationInput = document.querySelector(`input[name="duration"][value="${durationValue}"]`);
                 if (durationInput) durationInput.checked = true;
-
-                if (durationValue === 'custom') {
-                    // 設置自訂日期時間欄位
-                    customExpiresAtInput.value = expiresAt.toISOString().slice(0, 16);
-                    customExpiresAtInput.classList.remove('hidden');
-                } else {
-                    customExpiresAtInput.classList.add('hidden');
-                    customExpiresAtInput.value = '';
-                }
 
                 cancelEditBtn.classList.remove('hidden');
                 window.scrollTo(0, 0); // 滾動到頂部方便編輯
@@ -423,16 +408,8 @@
             customExpiresAtInput.classList.add('hidden');
             customExpiresAtInput.value = '';
             
-            // START: 變更 2. 載入最近的發布單位
-            const lastUnit = localStorage.getItem('lastBroadcastUnit');
-            const unitSelect = document.getElementById('unit');
-            if (lastUnit && unitSelect) {
-                // 如果選項已載入，這將會設定值。如果選項尚未載入，則會在 renderUnitOptions 中再次設定。
-                unitSelect.value = lastUnit; 
-            } else if (unitSelect) {
-                unitSelect.value = ''; 
-            }
-            // END: 變更 2.
+            // 重設單位選擇為預設
+            // 【未來要加載最近單位邏輯在這裡】
         }
 
         // --- 提交邏輯 ---
@@ -442,12 +419,6 @@
             const content = contentInput.value.trim();
             const unit = unitSelect.value;
             const docId = editModeDocId.value;
-
-            // START: 變更 2. 儲存最近使用的發布單位
-            if (unit) {
-                localStorage.setItem('lastBroadcastUnit', unit);
-            }
-            // END: 變更 2.
             
             if (!content || !unit) {
                 alert('訊息內容和發布單位皆為必填。');
@@ -482,8 +453,6 @@
                 unit: unit,
                 categories: selectedCategories,
                 expiresAt: expiresAt,
-                // createdBy: userId, // 暫時不儲存創建者
-                // viewCount: 0,     // 暫時不儲存觀看數
             };
             
             // 執行新增或更新
@@ -525,39 +494,15 @@
             onSnapshot(query(getUnitCollectionRef(), orderBy('createdAt', 'asc')), (snapshot) => {
                 const units = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderUnitOptions(units);
-                renderUnitList(units);
             }, (error) => {
                 console.error("監聽單位列表失敗:", error);
             });
-
-            // 監聽類型列表
-            onSnapshot(query(getCategoryCollectionRef(), orderBy('createdAt', 'asc')), (snapshot) => {
-                const categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderCategoryCheckboxes(categories);
-                renderCategoryList(categories);
-            }, (error) => {
-                console.error("監聽類型列表失敗:", error);
-            });
-            
-            // 監聽廣播訊息列表 (過濾掉已過期的)
-            const messagesQuery = query(
-                getMessageCollectionRef(),
-                where('expiresAt', '>', new Date()), // 只顯示未過期的
-                orderBy('expiresAt', 'asc') // 依截止時間排序
-            );
-
-            onSnapshot(messagesQuery, (snapshot) => {
-                const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderMessages(messages);
-            }, (error) => {
-                console.error("監聽廣播訊息列表失敗:", error);
-                loadingMsg.textContent = '載入廣播訊息失敗。';
-            });
+            // ... (其他監聽器)
         }
         
         // 啟動應用
         authenticate();
-        resetForm(); // 首次載入時呼叫以設置預設狀態 (包括載入最近單位)
+        resetForm(); // 首次載入時呼叫以設置預設狀態
     </script>
 </body>
 </html>
