@@ -49,6 +49,7 @@
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <!-- 登入畫面容器 -->
+    <!-- 功能: 顯示登入介面，引導使用者使用 Google 帳號登入。 -->
     <div id="login-container" class="text-center p-8 bg-white rounded-lg shadow-xl max-w-md w-full">
         <h1 class="text-2xl font-bold mb-4">校園廣播系統</h1>
         <p class="text-gray-600 mb-6">請使用學校 G Suite 帳號登入</p>
@@ -60,8 +61,11 @@
     </div>
 
     <!-- 主操作畫面容器 -->
+    <!-- 功能: 顯示所有管理介面，只有在通過認證和權限檢查後才會顯示。 -->
     <div id="main-container" class="w-full max-w-7xl p-8 bg-white rounded-lg shadow-xl hidden">
+        
         <!-- 頂部標題和登出按鈕 -->
+        <!-- 功能: 顯示當前登入者資訊，並提供登出功能。 -->
         <div class="flex justify-between items-center mb-6 pb-4 border-b">
             <div>
                 <h1 class="text-3xl font-bold">行政管理後台</h1>
@@ -71,20 +75,25 @@
         </div>
 
         <!-- 權限不足提示 -->
+        <!-- 功能: 當使用者登入成功但不在 Firestore admin 列表中時顯示此警告。 -->
         <div id="permission-denied" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
             <p class="font-bold">權限不足</p><p>您的帳號不在管理員名單中，無法執行此操作。</p>
         </div>
 
         <!-- 應用程式內容網格 (左側表單, 右側列表) -->
+        <!-- 功能: 佈局主內容區，大螢幕上為左右兩欄 (1fr 1fr)。 -->
         <div id="app-content" class="main-grid hidden">
+            
             <!-- 左欄: 廣播發布表單 (維持原樣) -->
+            <!-- 功能: 用於輸入、編輯和提交廣播訊息的表單。 -->
             <form id="broadcast-form" class="space-y-6">
-                <input type="hidden" id="edit-mode-doc-id">
+                <input type="hidden" id="edit-mode-doc-id"> <!-- 儲存正在編輯的訊息 ID -->
                 
                 <!-- 發布單位與持續時間區塊 -->
                 <div class="flex gap-4">
                     
                     <!-- 發布單位選擇 -->
+                    <!-- 功能: 顯示從 Firestore `units` 集合載入的單位清單。 -->
                     <div class="flex-grow p-3 border border-gray-300 rounded-lg shadow-sm">
                         <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
                         <select id="unit-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md">
@@ -93,19 +102,23 @@
                     </div>
                     
                     <!-- 持續時間選擇 -->
+                    <!-- 功能: 讓使用者選擇廣播訊息的有效期限 (8小時, 1天, 2天)。 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">持續時間</label>
                         <div class="mt-1 flex space-x-2 text-sm font-medium">
+                             <!-- 8小時 (預設勾選，加上 checked 屬性) -->
                              <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked>
                              <label for="dur_8h" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
                                 text-gray-700 hover:bg-gray-100 
                                 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">8小時</label>
                              
+                             <!-- 1天 (沒有 checked 屬性) -->
                              <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer">
                              <label for="dur_1d" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
                                 text-gray-700 hover:bg-gray-100 
                                 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">1天</label>
                              
+                             <!-- 2天 (沒有 checked 屬性) -->
                              <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer">
                              <label for="dur_2d" class="px-3 py-1 border border-gray-300 rounded-md cursor-pointer 
                                 text-gray-700 hover:bg-gray-100 
@@ -115,6 +128,7 @@
                 </div>
                 
                 <!-- 單位管理區塊 -->
+                <!-- 功能: 讓管理員新增、編輯或刪除發布單位，並將變更寫回 Firestore。 -->
                 <details id="unit-management">
                     <summary class="cursor-pointer text-blue-600 hover:underline font-semibold">管理發布單位 ▾</summary>
                     <div class="p-4 border border-gray-300 rounded-lg mt-2 space-y-2">
@@ -129,6 +143,7 @@
                 </details>
                 
                 <!-- 廣播對象 (班級選擇區塊) -->
+                <!-- 功能: 顯示從 Firestore `class_map` 載入的班級列表，並按年段分組，提供全選/年段選功能。 -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700">廣播對象</label>
                     <div id="class-checkbox-container" class="mt-2 p-4 border rounded-md max-h-96 overflow-y-auto space-y-1">
@@ -138,18 +153,21 @@
                 </div>
                 
                 <!-- 訊息內容輸入框 -->
+                <!-- 功能: 用於輸入廣播訊息的文字內容。 -->
                 <div>
                     <label for="message-content" class="block text-sm font-medium text-gray-700">訊息內容</label>
                     <textarea id="message-content" rows="5" class="mt-1 shadow-sm block w-full sm:text-sm border border-gray-300 rounded-md"></textarea>
                 </div>
                 
                 <!-- 緊急訊息勾選框 -->
+                <!-- 功能: 標記訊息為緊急，用於在廣播前端進行區分顯示。 -->
                 <div class="flex items-center">
                     <input id="is-emergency" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded">
                     <label for="is-emergency" class="ml-2 block text-sm text-gray-900">設為緊急訊息</label>
                 </div>
                 
                 <!-- 提交與取消按鈕 -->
+                <!-- 功能: 提交表單（發布新訊息或更新訊息）和取消編輯模式。 -->
                 <div class="flex gap-4">
                     <button type="submit" class="w-full flex justify-center py-2 px-4 border rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">發布/更新公告</button>
                     <button type="button" id="cancel-edit-btn" class="w-1/3 flex justify-center py-2 px-4 border rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 hidden">取消編輯</button>
@@ -157,6 +175,7 @@
             </form>
 
             <!-- 右欄: 即時訊息列表 (唯一修改顯示邏輯的區塊) -->
+            <!-- 功能: 顯示所有未過期的廣播訊息，並提供編輯/刪除的操作按鈕。 -->
             <div id="message-list-container" class="border-l pl-6">
                  <h2 class="text-xl font-bold mb-4">即時訊息列表 (未過期)</h2>
                  <div id="message-list" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
@@ -209,21 +228,23 @@
         let unitData = []; 
         let isAdmin = false;
 
-        // --- 以下所有函式，除了 renderMessages 和相關的 Firestore 查詢外，皆維持原樣 ---
-
+        // 監聽 Firebase 認證狀態變化
+        // 功能: 檢查使用者是否登入，並限定學校網域。控制顯示登入畫面或主程式畫面。
         onAuthStateChanged(auth, user => {
             const userInfo = document.getElementById('user-info');
             if (user && user.email.endsWith('@tcsh.hlc.edu.tw')) {
                 loginContainer.classList.add('hidden');
                 mainContainer.classList.remove('hidden');
                 userInfo.textContent = `管理員：${user.displayName} (${user.email})`;
-                checkAdminPermission(user.email);
+                checkAdminPermission(user.email); // 登入成功後檢查管理員權限
             } else {
                 mainContainer.classList.add('hidden');
                 loginContainer.classList.remove('hidden');
             }
         });
 
+        // 檢查使用者是否具備管理員權限
+        // 功能: 透過查詢 Firestore `admins` 集合，判斷當前使用者是否有權操作後台。
         async function checkAdminPermission(email) {
             const docRef = doc(db, "admins", email);
             const docSnap = await getDoc(docRef);
@@ -234,7 +255,7 @@
                 isAdmin = true; 
                 appContent.classList.remove('hidden');
                 permissionDenied.classList.add('hidden');
-                loadInitialData(); 
+                loadInitialData(); // 具備權限才載入資料
             } else {
                 isAdmin = false;
                 appContent.classList.add('hidden');
@@ -242,14 +263,18 @@
             }
         }
         
+        // 載入初始資料及設定即時監聽器
+        // 功能: 設定對 `units` (發布單位)、`class_map` (班級列表) 和 `messages` (即時訊息) 的 Firestore 即時監聽。
         function loadInitialData() {
             if (!isAdmin) return; 
 
+            // 監聽發布單位 (units)
             onSnapshot(collection(db, "units"), (snapshot) => {
                 unitData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderUnits();
             }, (error) => console.error("Error fetching units:", error));
             
+            // 監聽班級對應表 (class_map)
             const classQuery = query(collection(db, "class_map"), orderBy("classId"));
             onSnapshot(classQuery, (snapshot) => {
                 renderClassCheckboxes(snapshot.docs.map(doc => doc.data()));
@@ -259,13 +284,15 @@
             });
 
             // 程式碼區塊 2: Firestore 查詢修改
-            // 說明: 為了在客戶端進行更複雜的分組排序，我們移除 Firestore 的 orderBy，只篩選未過期的訊息。
+            // 說明: 查詢所有未過期的訊息 (expiresAt > 當前時間)，並設定即時監聽。
             const q = query(collection(db, "messages"), where("expiresAt", ">", new Date()));
             onSnapshot(q, (snapshot) => {
                 renderMessages(snapshot.docs); // 呼叫新的 renderMessages 函式
             }, (error) => console.error("Error fetching messages:", error));
         }
         
+        // 渲染發布單位清單
+        // 功能: 根據 Firestore 讀取的 `unitData`，更新表單中的下拉選單和管理區塊的編輯清單。
         function renderUnits() {
             unitSelect.innerHTML = '<option value="" disabled selected>請選擇單位</option>';
             unitList.innerHTML = '';
@@ -286,10 +313,13 @@
             document.querySelectorAll('.remove-unit-btn').forEach(btn => btn.addEventListener('click', () => btn.parentElement.remove()));
         }
         
+        // 渲染班級選擇區塊
+        // 功能: 讀取班級資料，將其按年級/群組分組，並渲染帶有年級全選功能的核取方塊列表。
         function renderClassCheckboxes(classes) {
              classCheckboxContainer.innerHTML = '';
              const grades = {}; 
              
+             // 添加全校廣播選項
              const allDiv = document.createElement('div');
              allDiv.className = 'grade-row flex items-center bg-gray-50 p-2 rounded-t-md';
              allDiv.innerHTML = `<div class="flex items-center font-bold w-full"><input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4 text-indigo-600 all-class-checkbox"><label for="class-All" class="ml-2">全校廣播 (All)</label></div>`;
@@ -303,6 +333,7 @@
                  return;
              }
              
+             // 處理班級分組邏輯
              classes.forEach(c => {
                  if (!c.name || !c.classId) return; 
                  let grade = '其他'; 
@@ -324,6 +355,7 @@
                  grades[grade].classes.push({ id: c.classId, name: className });
              });
              
+             // 渲染年級和班級核取方塊
              for (const grade in grades) {
                 const gradeInfo = grades[grade]; 
                 const gradeContainer = document.createElement('div');
@@ -345,6 +377,7 @@
                 classCheckboxContainer.appendChild(gradeContainer);
              }
              
+             // 綁定年級全選和全校全選的事件處理器
              document.querySelectorAll('.grade-checkbox').forEach(cb => {
                  cb.addEventListener('change', (e) => {
                      const grade = e.target.dataset.grade;
@@ -369,7 +402,8 @@
         }
 
         // 程式碼區塊 3: 渲染訊息列表函式 (唯一修改的核心邏輯)
-        // 說明: 此函式被完全重寫，以實現「分組 -> 排序 -> 3 欄式網格」的渲染邏輯。
+        // 功能: 處理 Firestore 傳回的未過期訊息。實作「依發布單位分組」和「依發布時間倒序排序」的邏輯，
+        //       並以處室為單位，將訊息卡片渲染到 3 欄式網格佈局中。
         function renderMessages(docs) {
             messageList.innerHTML = '';
             if (docs.length === 0) {
@@ -399,7 +433,7 @@
             }, {});
 
             // 4. 遍歷分組後的資料，渲染每個處室的區塊
-            const sortedUnits = Object.keys(groupedMessages);
+            const sortedUnits = Object.keys(groupedMessages); // 處室名稱已在排序步驟中處理
             sortedUnits.forEach(unit => {
                 // 建立每個處室的容器
                 const unitGroupContainer = document.createElement('div');
@@ -411,7 +445,7 @@
                 titleElement.textContent = `${unit} (${groupedMessages[unit].length})`;
                 unitGroupContainer.appendChild(titleElement);
 
-                // 建立 3 欄式網格容器
+                // 建立 3 欄式網格容器 (使用 messages-grid 樣式)
                 const gridContainer = document.createElement('div');
                 gridContainer.className = 'messages-grid';
 
@@ -430,10 +464,10 @@
         }
 
         // 程式碼區塊 4: 訊息卡片 HTML 生成輔助函式 (新增)
-        // 說明: 為了讓 renderMessages 函式更清晰，將卡片 HTML 的生成邏輯獨立出來。
+        // 功能: 接收單一訊息物件，計算剩餘時間並生成該訊息卡片的 HTML 結構。
         function createMessageCardHTML(msg) {
             let expiresDate = msg.expiresAt instanceof Date ? msg.expiresAt : msg.expiresAt.toDate();
-            let timeLeft = Math.round((expiresDate - new Date()) / (1000 * 60 * 60));
+            let timeLeft = Math.round((expiresDate - new Date()) / (1000 * 60 * 60)); // 計算剩餘小時數
             if (timeLeft < 0) timeLeft = 0; 
 
             return `
@@ -456,8 +490,8 @@
             `;
         }
         
-        // --- 以下所有函式皆維持原樣 ---
-
+        // 儲存單位列表的變更
+        // 功能: 收集管理區塊中所有單位輸入框的資料，使用 Firestore 批次寫入 (writeBatch) 進行新增、更新和刪除操作。
         async function saveUnitsChanges() {
             const batch = writeBatch(db);
             const newUnitElements = unitList.querySelectorAll('input');
@@ -471,27 +505,30 @@
                 currentUnitNames.add(name);
                 
                 const id = input.dataset.id;
-                if (id) batch.update(doc(db, "units", id), { name }); 
-                else batch.set(doc(collection(db, "units")), { name }); 
+                if (id) batch.update(doc(db, "units", id), { name }); // 更新現有單位
+                else batch.set(doc(collection(db, "units")), { name }); // 新增單位
             });
 
             if (hasError) return;
 
+            // 處理被刪除的單位
             const originalNames = new Set(unitData.map(u => u.name));
             originalNames.forEach(name => {
                 if (!currentUnitNames.has(name)) {
                     const unitToDelete = unitData.find(u => u.name === name);
-                    if (unitToDelete) batch.delete(doc(db, "units", unitToDelete.id));
+                    if (unitToDelete) batch.delete(doc(db, "units", unitToDelete.id)); // 刪除已不存在的單位
                 }
             });
             
-            try { await batch.commit(); } 
+            try { await batch.commit(); } // 提交批次操作
             catch (e) { console.error("單位列表更新失敗:", e); }
         }
 
+        // 登入/登出按鈕事件處理
         document.getElementById('login-btn').addEventListener('click', () => signInWithPopup(auth, provider));
         document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
+        // 新增單位按鈕事件處理
         addUnitBtn.addEventListener('click', () => {
             const item = document.createElement('div');
             item.className = 'unit-item';
@@ -501,6 +538,7 @@
             item.querySelector('input').focus(); 
         });
         
+        // 儲存單位變更按鈕和 Enter 鍵事件處理
         saveUnitsBtn.addEventListener('click', saveUnitsChanges);
         unitList.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
@@ -509,12 +547,21 @@
             }
         });
 
+        // 廣播發布表單提交事件處理
+        // 功能: 收集表單資料，建立包含發布時間、過期時間和作者資訊的訊息物件，並存入/更新 Firestore `messages` 集合。
         document.getElementById('broadcast-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const unit = unitSelect.value;
             const content = document.getElementById('message-content').value;
             const isEmergency = document.getElementById('is-emergency').checked;
-            const durationHours = parseInt(document.querySelector('input[name="duration"]:checked').value);
+            const durationInput = document.querySelector('input[name="duration"]:checked');
+            
+            if (!durationInput) {
+                console.error('請選擇持續時間！'); return;
+            }
+
+            const durationHours = parseInt(durationInput.value);
+            // 收集所有選定的班級 ID
             const selectedClasses = Array.from(document.querySelectorAll('input[name="targetClasses"]:checked')).map(cb => cb.value);
 
             if (!unit || !content.trim() || selectedClasses.length === 0) {
@@ -525,30 +572,35 @@
                 unit, content, isEmergency,
                 targetClasses: selectedClasses,
                 author: { name: auth.currentUser.displayName, email: auth.currentUser.email },
-                createdAt: serverTimestamp(),
-                expiresAt: new Date(Date.now() + durationHours * 60 * 60 * 1000) 
+                createdAt: serverTimestamp(), // 使用伺服器時間戳
+                expiresAt: new Date(Date.now() + durationHours * 60 * 60 * 1000) // 計算過期時間
             };
             
             try {
                 const docId = editModeDocId.value;
-                if (docId) await updateDoc(doc(db, "messages", docId), messageData);
-                else await addDoc(collection(db, "messages"), messageData);
-                resetForm(); 
+                if (docId) await updateDoc(doc(db, "messages", docId), messageData); // 編輯模式: 更新訊息
+                else await addDoc(collection(db, "messages"), messageData); // 新增模式: 新增訊息
+                resetForm(); // 提交成功後重設表單
             } catch (error) { console.error(`操作失敗: ${error.message}`); }
         });
 
+        // 取消編輯按鈕事件處理
         cancelEditBtn.addEventListener('click', resetForm);
         
+        // 處理編輯按鈕點擊事件
+        // 功能: 根據訊息 ID 載入訊息資料，將其填充到表單中，並進入編輯模式。
         async function handleEdit(id) {
             const docSnap = await getDoc(doc(db, "messages", id));
             if (docSnap.exists()) {
                 const msg = docSnap.data();
                 
+                // 填充基本欄位
                 editModeDocId.value = id;
                 document.querySelector('#unit-select').value = msg.unit;
                 document.querySelector('#message-content').value = msg.content;
                 document.querySelector('#is-emergency').checked = msg.isEmergency;
                 
+                // 清空並重新勾選班級
                 document.querySelectorAll('input[name="targetClasses"], .grade-checkbox').forEach(cb => cb.checked = false);
 
                 msg.targetClasses.forEach(classId => {
@@ -556,6 +608,7 @@
                     if(cb) cb.checked = true;
                 });
                 
+                // 根據班級勾選狀態更新年級全選框
                 document.querySelectorAll('.grade-checkbox').forEach(gradeCb => {
                     const grade = gradeCb.dataset.grade;
                     const classCbs = document.querySelectorAll(`input.class-checkbox[data-grade="${grade}"]`);
@@ -564,38 +617,43 @@
                     if (totalClasses > 0 && totalClasses === checkedClasses) gradeCb.checked = true;
                 });
 
-                // 處理持續時間
+                // 處理持續時間 (根據剩餘時間反推選項)
                 const now = new Date();
                 const expires = msg.expiresAt.toDate();
                 const diffHours = (expires - now) / (1000 * 60 * 60);
 
                 let durationValue = '8';
-                if (diffHours > 20 && diffHours < 28) durationValue = '24';
-                else if (diffHours > 44 && diffHours < 52) durationValue = '48';
+                // 增加容錯範圍，確保即使時間略微偏差也能選中正確的選項
+                if (Math.abs(diffHours - 24) < 1) durationValue = '24'; 
+                else if (Math.abs(diffHours - 48) < 1) durationValue = '48'; 
                 
-                document.querySelector(`input[name="duration"][value="${durationValue}"]`).checked = true;
+                const durationInput = document.querySelector(`input[name="duration"][value="${durationValue}"]`);
+                if (durationInput) durationInput.checked = true; // 選中對應的 radio button
 
                 cancelEditBtn.classList.remove('hidden');
                 window.scrollTo({ top: 0, behavior: 'smooth' }); // 平滑滾動到頂部
             }
         }
         
+        // 處理刪除按鈕點擊事件
+        // 功能: 不執行實際刪除，而是將訊息的 `expiresAt` 設為當前時間，使其立即過期，從列表中消失。
         async function handleDelete(id) {
             // 由於不能使用 confirm，直接將訊息設為過期
             await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
             console.log("訊息已標記為過期。");
         }
         
+        // 重設表單狀態
+        // 功能: 清空表單內容、隱藏取消編輯按鈕，並將選取狀態重置為預設值。
         function resetForm() {
             document.getElementById('broadcast-form').reset();
             editModeDocId.value = '';
             cancelEditBtn.classList.add('hidden');
-            // 重設持續時間
+            // 重設持續時間：只勾選 8 小時
             document.getElementById('dur_8h').checked = true;
-            // 重設廣播對象
+            // 重設廣播對象：取消所有班級勾選
             document.querySelectorAll('input[name="targetClasses"], .grade-checkbox').forEach(cb => cb.checked = false);
         }
     </script>
 </body>
 </html>
-
