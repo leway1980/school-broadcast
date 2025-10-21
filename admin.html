@@ -234,6 +234,7 @@
         
         let unitData = []; 
         let isAdmin = false;
+        let lastSelectedUnit = "";
 
         // 監聽 Firebase 認證狀態變化
         // 功能: 檢查使用者是否登入，並限定學校網域。控制顯示登入畫面或主程式畫面。
@@ -587,6 +588,7 @@
                 const docId = editModeDocId.value;
                 if (docId) await updateDoc(doc(db, "messages", docId), messageData); // 編輯模式: 更新訊息
                 else await addDoc(collection(db, "messages"), messageData); // 新增模式: 新增訊息
+                lastSelectedUnit = unit;
                 resetForm(); // 提交成功後重設表單
             } catch (error) { console.error(`操作失敗: ${error.message}`); }
         });
@@ -656,6 +658,12 @@
             document.getElementById('broadcast-form').reset();
             editModeDocId.value = '';
             cancelEditBtn.classList.add('hidden');
+            if (lastSelectedUnit) {
+                unitSelect.value = lastSelectedUnit;
+            } else if (unitData.length > 0) {
+                // 如果還沒有發布過，就退回預設 (第一個)
+                unitSelect.value = unitData[0].name;
+            }
             // 重設持續時間：只勾選 8 小時
             document.getElementById('dur_8h').checked = true;
             // 重設廣播對象：取消所有班級勾選
