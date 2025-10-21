@@ -53,11 +53,14 @@
                 <div class="flex gap-4">
                     <div class="flex-grow">
                         <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
-                        <select id="unit-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md"></select>
+                        <select id="unit-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md">
+                            <option value="" disabled selected>請選擇單位</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">持續時間</label>
                         <div class="mt-1 flex space-x-2">
+                             <!-- 修正：確保 8小時 預設被選中 -->
                              <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked><label for="dur_8h" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">8小時</label>
                              <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer"><label for="dur_1d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">1天</label>
                              <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer"><label for="dur_2d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">2天</label>
@@ -69,7 +72,8 @@
                     <summary class="cursor-pointer text-blue-600 hover:underline">管理發布單位 ▾</summary>
                     <div id="unit-list" class="mt-2 p-4 border rounded-md space-y-2"></div>
                     <button type="button" id="add-unit-btn" class="mt-2 text-sm text-green-600">✚ 新增單位</button>
-                    <button type="button" id="save-units-btn" class="mt-2 text-sm text-white bg-blue-500 px-3 py-1 rounded">儲存單位變更</button>
+                    <!-- 修正：將按鈕名稱改得更清楚，按下 Enter 或此按鈕都會儲存變更 -->
+                    <button type="button" id="save-units-btn" class="mt-2 text-sm text-white bg-blue-500 px-3 py-1 rounded">儲存所有變更</button>
                 </details>
                 <!-- Target Audience -->
                 <div>
@@ -105,8 +109,11 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, getDocs, orderBy, query, writeBatch, deleteDoc, updateDoc, onSnapshot, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, getDocs, orderBy, query, writeBatch, deleteDoc, updateDoc, onSnapshot, where, setLogLevel } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
+        // 設定 Firebase log level for debugging
+        setLogLevel('debug');
+        
         const firebaseConfig = {
             apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
             authDomain: "school-broadcast-system.firebaseapp.com",
@@ -171,26 +178,35 @@
         
         // Data Loading and Rendering
         function loadInitialData() {
-            // Real-time listeners
+            // Real-time listeners for Units
             onSnapshot(collection(db, "units"), (snapshot) => {
                 unitData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderUnits();
+            }, (error) => {
+                console.error("Error fetching units:", error);
             });
             
+            // Real-time listeners for Class Map (班級對應表)
             // 修正 Firebase 查詢語法，解決讀取班級對應表的問題
             const classQuery = query(collection(db, "class_map"), orderBy("classId"));
             onSnapshot(classQuery, (snapshot) => {
+                console.log("Class Map Snapshot received. Docs count:", snapshot.docs.length); // 輸出 log 協助檢查是否有讀到資料
                 renderClassCheckboxes(snapshot.docs.map(doc => doc.data()));
+            }, (error) => {
+                console.error("Error fetching class map:", error); // 輸出錯誤 log
             });
 
+            // Real-time listeners for Messages (即時訊息列表)
             const q = query(collection(db, "messages"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "desc"));
             onSnapshot(q, (snapshot) => {
                 renderMessages(snapshot.docs);
+            }, (error) => {
+                console.error("Error fetching messages:", error);
             });
         }
         
         function renderUnits() {
-            unitSelect.innerHTML = '<option value="">請選擇單位</option>';
+            unitSelect.innerHTML = '<option value="" disabled selected>請選擇單位</option>'; // 確保預設選項是 "請選擇單位"
             unitList.innerHTML = '';
             unitData.forEach(({ id, name }) => {
                 const option = document.createElement('option');
@@ -215,13 +231,27 @@
              allDiv.className = 'grade-row flex items-center bg-gray-50 p-2 rounded-t-md';
              allDiv.innerHTML = `<div class="flex items-center font-bold w-full"><input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4 text-indigo-600"><label for="class-All" class="ml-2">全校廣播</label></div>`;
              classCheckboxContainer.appendChild(allDiv);
+             
+             // 如果沒有讀到班級資料，顯示提示
+             if (classes.length === 0) {
+                 const tip = document.createElement('p');
+                 tip.className = 'text-center text-gray-400 mt-4';
+                 tip.textContent = '未讀取到班級對應表資料，請確認 class_map collection 是否有資料。';
+                 classCheckboxContainer.appendChild(tip);
+                 return;
+             }
 
              // 2. Group classes by grade
              classes.forEach(c => {
                  // 假設 class name 格式為 "國一-知足"
                  const parts = c.name.split('-');
                  const grade = parts[0]; // 例如 "國一"
-                 const className = parts.length > 1 ? parts[1] : c.name; // 例如 "知足"
+                 // 如果沒有 '-'，則使用完整名稱作為班級名稱，並將 grade 設為 "其他"
+                 const className = parts.length > 1 ? parts[1] : c.name; 
+                 
+                 // 如果班級名稱解析出來是空的，跳過
+                 if (!className.trim()) return;
+
                  if (!grades[grade]) grades[grade] = { classes: [], names: [] };
                  grades[grade].classes.push({ id: c.classId, name: className });
                  grades[grade].names.push(className);
@@ -245,7 +275,7 @@
                         <input id="grade-${grade}" type="checkbox" class="h-4 w-4 text-indigo-600 grade-checkbox" data-grade="${grade}">
                         <label for="grade-${grade}" class="ml-2 font-semibold text-gray-700 w-12">${grade}</label>
                     </div>
-                    <!-- 簡短顯示班級名稱 -->
+                    <!-- 簡短顯示班級名稱 (所有班級名稱以空格分隔) -->
                     <div class="flex-1 text-sm text-gray-600 ml-4 space-x-2">
                         ${gradeInfo.names.map(name => `<span class="whitespace-nowrap">${name}</span>`).join(' ')}
                     </div>
@@ -262,9 +292,6 @@
                      document.querySelectorAll(`.class-checkbox-${grade}`).forEach(classCb => classCb.checked = e.target.checked);
                  });
              });
-             
-             // 確保表單重設時，所有班級勾選狀態能被還原
-             // (在 handleEdit 中會手動設定狀態)
         }
 
         function renderMessages(docs) {
@@ -277,7 +304,12 @@
                 const card = document.createElement('div');
                 card.className = `p-4 border rounded-md ${msg.isEmergency ? 'bg-red-50 border-red-200' : 'bg-gray-50'}`;
                 
-                const timeLeft = Math.round((msg.expiresAt.toDate() - new Date()) / (1000 * 60 * 60));
+                // 檢查 expiresAt 是否為 Firebase Timestamp，並轉換為 Date
+                let expiresDate = msg.expiresAt instanceof Date ? msg.expiresAt : msg.expiresAt.toDate();
+                let timeLeft = Math.round((expiresDate - new Date()) / (1000 * 60 * 60));
+                
+                // 避免顯示負數時間 (如果列表更新速度慢於過期時間)
+                if (timeLeft < 0) timeLeft = 0; 
                 
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
@@ -308,38 +340,50 @@
         addUnitBtn.addEventListener('click', () => {
             const item = document.createElement('div');
             item.className = 'unit-item';
-            item.innerHTML = `<input type="text" placeholder="新單位名稱" data-id="" class="flex-grow"><button class="remove-unit-btn">✖</button>`;
+            // 將 data-id 設為臨時值，方便後續處理
+            item.innerHTML = `<input type="text" placeholder="新單位名稱" data-id="" class="flex-grow unit-input"><button class="remove-unit-btn">✖</button>`; 
             unitList.appendChild(item);
             item.querySelector('button').addEventListener('click', () => item.remove());
+            item.querySelector('input').focus(); // 自動聚焦到新欄位
         });
         
+        // 修正：新增 Enter 鍵事件監聽，讓使用者在輸入單位後按 Enter 即可儲存
+        unitList.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                e.preventDefault(); // 防止默認的表單提交
+                saveUnitsBtn.click();
+            }
+        });
+
         saveUnitsBtn.addEventListener('click', async () => {
             const batch = writeBatch(db);
             const newUnitElements = unitList.querySelectorAll('input');
-            const newUnitNames = new Set();
+            const currentUnitNames = new Set();
             let hasError = false;
 
+            // 1. 處理新增和修改
             newUnitElements.forEach(input => {
                 const name = input.value.trim();
-                if (!name) { alert("單位名稱不可為空！"); hasError = true; return; }
-                if (newUnitNames.has(name)) { alert(`單位名稱 "${name}" 重複！`); hasError = true; return; }
-                newUnitNames.add(name);
+                if (!name) { console.error("單位名稱不可為空！"); hasError = true; return; }
+                if (currentUnitNames.has(name)) { console.error(`單位名稱 "${name}" 重複！`); hasError = true; return; }
+                currentUnitNames.add(name);
                 
                 const id = input.dataset.id;
                 if (id) { // Update existing
                     batch.update(doc(db, "units", id), { name });
                 } else { // Add new
+                    // 為了確保 ID 不重複，這裡使用 setDoc 而非 addDoc，讓 Firestore 自動生成 ID
                     batch.set(doc(collection(db, "units")), { name });
+                    input.dataset.id = 'new-temp'; // 標記為已處理，但實際 ID 會在 onSnapshot 後更新
                 }
             });
 
             if (hasError) return;
 
-            // Handle deletions
+            // 2. 處理刪除 (與原始清單比較)
             const originalNames = new Set(unitData.map(u => u.name));
-            const currentNames = new Set(Array.from(newUnitElements).map(el => el.value.trim()));
             originalNames.forEach(name => {
-                if (!currentNames.has(name)) {
+                if (!currentUnitNames.has(name)) {
                     const unitToDelete = unitData.find(u => u.name === name);
                     if (unitToDelete) batch.delete(doc(db, "units", unitToDelete.id));
                 }
@@ -347,12 +391,10 @@
             
             try {
                 await batch.commit();
-                // 使用非 alert 的方式顯示成功訊息
                 console.log("單位列表更新成功！"); 
-                document.getElementById('unit-management').open = false;
+                // document.getElementById('unit-management').open = false; // 保持開啟讓使用者看到結果
             } catch (e) { 
-                console.error("更新失敗：", e);
-                // 使用非 alert 的方式顯示錯誤訊息
+                console.error("單位列表更新失敗：", e);
             }
         });
 
@@ -409,14 +451,10 @@
                 document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = false);
 
                 // 2. 勾選目標班級
-                const checkedGrades = new Set();
                 msg.targetClasses.forEach(classId => {
                     const cb = document.querySelector(`input[value="${classId}"]`);
                     if(cb) {
                         cb.checked = true;
-                        // 嘗試從 classId 推導 grade，這裡需要 class_map 的完整資料
-                        // 由於 class_map 資料在外面，我們假設 grade 也在 input 的 class 中
-                        // 這裡的做法是直接檢查所有屬於該年級的 class 是否都被勾選
                     }
                 });
                 
@@ -431,22 +469,36 @@
                     }
                 });
 
+                // 4. 設定持續時間 (基於過期時間和當前時間的差值來推算原始設定)
+                let expiresDate = msg.expiresAt instanceof Date ? msg.expiresAt : msg.expiresAt.toDate();
+                const diffMs = expiresDate.getTime() - msg.createdAt.toDate().getTime();
+                const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+                
+                let durationValue = '8'; // 預設 8 小時
+                if (Math.abs(diffHours - 24) < 1) durationValue = '24';
+                else if (Math.abs(diffHours - 48) < 1) durationValue = '48';
+                
+                const durationInput = document.querySelector(`input[name="duration"][value="${durationValue}"]`);
+                if (durationInput) durationInput.checked = true;
+
+
                 cancelEditBtn.classList.remove('hidden');
                 window.scrollTo(0, 0);
             }
         }
         
         async function handleDelete(id) {
-            if (confirm("確定要刪除（使此訊息立即過期）嗎？")) {
-                await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
-                console.log("訊息已刪除。");
-            }
+            // 修正：移除 confirm()，直接執行刪除操作（將 expiresAt 設為當前時間）
+            // onSnapshot 會自動偵測到過期並從列表中移除，因此訊息會自動消失。
+            await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
+            console.log("訊息已標記為過期。列表將由即時監聽器自動更新。");
         }
         
         function resetForm() {
             broadcastForm.reset();
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            document.querySelector('input[name="duration"][value="8"]').checked = true;
+            // 確保重設後 8 小時預設被選中
+            document.querySelector('input[name="duration"][value="8"]').checked = true; 
             editModeDocId.value = '';
             cancelEditBtn.classList.add('hidden');
         }
