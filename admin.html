@@ -1,659 +1,455 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>校園廣播系統 - 管理後台</title>
+    <title>校園廣播系統 - 行政管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'primary-green': '#013220', // 黑板墨綠色
-                        'chalk-yellow': '#f1c40f', // 粉筆黃
-                        'chalk-white': '#ecf1f1', // 粉筆白
-                        'gray-border': '#7f8c8d'  // 分隔線灰色
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
     <style>
-        body {
-            background-color: #f4f4f5; /* 淺灰色背景 */
-            font-family: 'Noto Sans TC', sans-serif;
-        }
-        .card {
-            background-color: white;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-        }
-        .form-group label {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-            display: block;
-        }
-        .input-style {
-            padding: 0.5rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.375rem;
-            width: 100%;
-            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-        }
-        .input-style:focus {
-            outline: none;
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
-        }
-        .unit-button {
-            transition: background-color 0.15s;
-        }
-        /* 美化 checkbox 區域 */
-        #target-classes-container {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #e5e7eb;
-            padding: 0.75rem;
-            border-radius: 0.375rem;
-        }
-        #target-classes-container label {
-            cursor: pointer;
-            margin-right: 1rem;
-            display: inline-flex;
-            align-items: center;
-        }
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; }
+        .main-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+        @media (min-width: 1024px) { .main-grid { grid-template-columns: 400px 1fr; } }
+        /* 移除 .class-grid，改用新的 .grade-row 樣式 */
+        .unit-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-radius: 0.25rem; }
+        .unit-item:hover { background-color: #e9ecef; }
+        .unit-item input { border: none; background: transparent; }
+        .unit-item button { color: #dc3545; }
+        .grade-row { border-bottom: 1px dashed #e5e7eb; padding: 8px 0; }
+        .grade-row:last-child { border-bottom: none; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <!-- 載入畫面 (Loading Overlay) -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="flex flex-col items-center">
-            <div class="spinner mb-4"></div>
-            <p class="text-lg font-semibold text-gray-700">載入中，請稍候...</p>
-        </div>
+    <!-- 登入畫面 -->
+    <div id="login-container" class="text-center p-8 bg-white rounded-lg shadow-xl max-w-md w-full">
+        <h1 class="text-2xl font-bold mb-4">校園廣播系統</h1>
+        <p class="text-gray-600 mb-6">請使用學校 G Suite 帳號登入</p>
+        <button id="login-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center mx-auto">
+            <svg class="w-6 h-6 mr-2" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.82l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+            使用 Google 帳號登入
+        </button>
     </div>
 
-    <div id="app-content" class="container mx-auto max-w-6xl hidden">
-        <h1 class="text-3xl font-bold mb-6 text-gray-800 border-b pb-2">校園廣播系統 - 管理後台</h1>
+    <!-- 主操作畫面 -->
+    <div id="main-container" class="w-full max-w-7xl p-8 bg-white rounded-lg shadow-xl hidden">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b">
+            <div>
+                <h1 class="text-3xl font-bold">行政管理後台</h1>
+                <p id="user-info" class="text-sm text-gray-500"></p>
+            </div>
+            <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">登出</button>
+        </div>
 
-        <!-- 廣播表單區域 -->
-        <div class="card p-6 mb-8">
-            <h2 class="text-2xl font-semibold mb-4 text-primary-green" id="form-title">新增廣播訊息</h2>
-            <form id="broadcast-form" class="space-y-4">
-                
-                <input type="hidden" id="edit-mode-doc-id" value="">
+        <div id="permission-denied" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+            <p class="font-bold">權限不足</p><p>您的帳號不在管理員名單中，無法執行此操作。</p>
+        </div>
 
-                <!-- 訊息發佈單位 -->
-                <div class="form-group">
-                    <label for="unit-select">發佈單位</label>
-                    <select id="unit-select" class="input-style" required>
-                        <option value="教務處">教務處</option>
-                        <option value="學務處">學務處</option>
-                        <option value="總務處">總務處</option>
-                        <option value="輔導處">輔導處</option>
-                        <option value="圖書館">圖書館</option>
-                        <option value="資訊中心">資訊中心</option>
-                        <option value="教師">教師</option>
-                        <option value="其他">其他</option>
-                    </select>
-                </div>
-
-                <!-- 訊息內容 -->
-                <div class="form-group">
-                    <label for="message-content">訊息內容</label>
-                    <textarea id="message-content" rows="4" class="input-style" placeholder="請輸入廣播訊息內容..." required></textarea>
-                </div>
-
-                <!-- 緊急訊息標記 -->
-                <div class="form-group flex items-center">
-                    <input type="checkbox" id="is-emergency" class="h-4 w-4 text-red-600 border-gray-300 rounded mr-2">
-                    <label for="is-emergency" class="mb-0 text-red-600 font-bold">緊急訊息 (紅字提醒)</label>
-                </div>
-
-                <!-- 廣播對象 (班級列表) -->
-                <div class="form-group">
-                    <label>廣播對象 (可複選)</label>
-                    <div id="target-classes-container" class="bg-gray-50 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        <!-- 班級列表將由 JavaScript 載入 -->
-                        <div id="classes-loading-placeholder" class="col-span-3 text-center text-gray-500 py-4">
-                            載入班級列表中...
+        <div id="app-content" class="main-grid">
+            <!-- Left Column: Form -->
+            <form id="broadcast-form" class="space-y-6">
+                <input type="hidden" id="edit-mode-doc-id">
+                <!-- Unit & Duration -->
+                <div class="flex gap-4">
+                    <div class="flex-grow">
+                        <label for="unit-select" class="block text-sm font-medium text-gray-700">發布單位</label>
+                        <select id="unit-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">持續時間</label>
+                        <div class="mt-1 flex space-x-2">
+                             <input type="radio" id="dur_8h" name="duration" value="8" class="hidden peer" checked><label for="dur_8h" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">8小時</label>
+                             <input type="radio" id="dur_1d" name="duration" value="24" class="hidden peer"><label for="dur_1d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">1天</label>
+                             <input type="radio" id="dur_2d" name="duration" value="48" class="hidden peer"><label for="dur_2d" class="px-3 py-1 border rounded-md cursor-pointer peer-checked:bg-blue-500 peer-checked:text-white">2天</label>
                         </div>
                     </div>
                 </div>
-
-                <!-- 持續時間 -->
-                <div class="form-group">
-                    <label>持續時間 (小時)</label>
-                    <div class="flex flex-wrap gap-4">
-                        <label class="flex items-center">
-                            <input type="radio" name="duration" value="2" class="h-4 w-4 text-indigo-600">
-                            <span class="ml-2">2小時</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="duration" value="4" class="h-4 w-4 text-indigo-600">
-                            <span class="ml-2">4小時</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="duration" value="8" class="h-4 w-4 text-indigo-600" checked>
-                            <span class="ml-2">8小時 (預設)</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="duration" value="24" class="h-4 w-4 text-indigo-600">
-                            <span class="ml-2">24小時</span>
-                        </label>
-                    </div>
+                <!-- Unit Management -->
+                <details id="unit-management">
+                    <summary class="cursor-pointer text-blue-600 hover:underline">管理發布單位 ▾</summary>
+                    <div id="unit-list" class="mt-2 p-4 border rounded-md space-y-2"></div>
+                    <button type="button" id="add-unit-btn" class="mt-2 text-sm text-green-600">✚ 新增單位</button>
+                    <button type="button" id="save-units-btn" class="mt-2 text-sm text-white bg-blue-500 px-3 py-1 rounded">儲存單位變更</button>
+                </details>
+                <!-- Target Audience -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">廣播對象</label>
+                    <!-- 班級清單已更新為簡短顯示模式 -->
+                    <div id="class-checkbox-container" class="mt-2 p-4 border rounded-md max-h-60 overflow-y-auto space-y-1"></div>
                 </div>
-
+                <!-- Content -->
+                <div>
+                    <label for="message-content" class="block text-sm font-medium text-gray-700">訊息內容</label>
+                    <textarea id="message-content" rows="5" class="mt-1 shadow-sm block w-full sm:text-sm border border-gray-300 rounded-md"></textarea>
+                </div>
+                 <!-- Emergency -->
+                <div class="flex items-center">
+                    <input id="is-emergency" type="checkbox" class="h-4 w-4 text-red-600 border-gray-300 rounded">
+                    <label for="is-emergency" class="ml-2 block text-sm text-gray-900">設為緊急訊息</label>
+                </div>
+                <!-- Submit -->
                 <div class="flex gap-4">
-                    <button type="submit" class="w-full bg-primary-green hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200">
-                        發佈廣播
-                    </button>
-                    <button type="button" id="cancel-edit-btn" class="hidden bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-200" onclick="resetForm()">
-                        取消編輯
-                    </button>
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">發布/更新公告</button>
+                    <button type="button" id="cancel-edit-btn" class="w-1/3 flex justify-center py-2 px-4 border rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 hidden">取消編輯</button>
                 </div>
             </form>
-        </div>
 
-        <!-- 訊息列表區域 (已修正為 4 欄網格佈局) -->
-        <div class="card p-6">
-            <h2 class="text-2xl font-semibold mb-4 text-primary-green">當前廣播訊息列表</h2>
-            <!-- 修正點 2: 設置響應式網格，在大螢幕上顯示 4 欄 -->
-            <div id="messages-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <p class="text-center text-gray-500 col-span-full" id="list-status">載入中...</p>
+            <!-- Right Column: Message List -->
+            <div id="message-list-container" class="border-l pl-6">
+                 <h2 class="text-xl font-bold mb-4">即時訊息列表 (未過期)</h2>
+                 <div id="message-list" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2"></div>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp, getDocs, orderBy, query, writeBatch, deleteDoc, updateDoc, onSnapshot, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-        // 設定 Firebase 錯誤級別
-        setLogLevel('debug');
+        const firebaseConfig = {
+            apiKey: "AIzaSyDQCFgkOKJcz6dKP7gZMEjCYBJd3xnJ3bA",
+            authDomain: "school-broadcast-system.firebaseapp.com",
+            projectId: "school-broadcast-system",
+            storageBucket: "school-broadcast-system.appspot.com",
+            messagingSenderId: "1057938447303",
+            appId: "1:1057938447303:web:81042cfb29f24bc4ff97e2",
+            measurementId: "G-LLRPYTW9QX"
+        };
 
-        // --- Firebase 初始化和全域變數 ---
-        let db;
-        let auth;
-        let userId = 'anonymous'; // 預設值
-
-        // Global variables provided by the Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const appContent = document.getElementById('app-content');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ 'hd': 'tcsh.hlc.edu.tw' });
+        
+        // DOM Elements
+        const loginContainer = document.getElementById('login-container');
+        const mainContainer = document.getElementById('main-container');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userInfo = document.getElementById('user-info');
         const broadcastForm = document.getElementById('broadcast-form');
+        const permissionDenied = document.getElementById('permission-denied');
+        const appContent = document.getElementById('app-content');
+        const unitSelect = document.getElementById('unit-select');
+        const unitList = document.getElementById('unit-list');
+        const addUnitBtn = document.getElementById('add-unit-btn');
+        const saveUnitsBtn = document.getElementById('save-units-btn');
+        const classCheckboxContainer = document.getElementById('class-checkbox-container');
+        const messageList = document.getElementById('message-list');
         const editModeDocId = document.getElementById('edit-mode-doc-id');
         const cancelEditBtn = document.getElementById('cancel-edit-btn');
-        const formTitle = document.getElementById('form-title');
-        const messagesList = document.getElementById('messages-list');
-        const listStatus = document.getElementById('list-status');
-        const targetClassesContainer = document.getElementById('target-classes-container');
-        const classesLoadingPlaceholder = document.getElementById('classes-loading-placeholder');
-
-        let isAuthReady = false;
-
-        // --- 輔助函式 ---
-
-        /**
-         * 轉換 Firestore Timestamp 或 Date 物件為格式化字串
-         * @param {object} timestamp - Firestore Timestamp 物件
-         * @returns {string} 格式化日期時間字串
-         */
-        function formatTimestamp(timestamp) {
-            if (!timestamp) return 'N/A';
-            // 嘗試使用 toDate() 轉換，如果不是 Timestamp，則直接使用
-            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-            const options = {
-                year: 'numeric', month: 'numeric', day: 'numeric',
-                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                hour12: false
-            };
-            return date.toLocaleString('zh-TW', options);
-        }
-
-        // --- 廣播對象 (班級列表) 處理 ---
-
-        /**
-         * 載入班級列表並渲染到表單中。
-         */
-        async function loadClassesAndRenderCheckboxes() {
-            try {
-                // 修正點：移除路徑開頭多餘的斜線，確保Firestore路徑正確
-                const classesCollectionPath = `artifacts/${appId}/public/data/classes`;
-                const q = query(collection(db, classesCollectionPath));
-
-                // 班級列表使用 onSnapshot 確保即時更新 (雖然班級通常不會變動)
-                onSnapshot(q, (snapshot) => {
-                    if (classesLoadingPlaceholder) {
-                         classesLoadingPlaceholder.classList.add('hidden');
-                    }
-                    if (targetClassesContainer) {
-                        targetClassesContainer.innerHTML = ''; // 清空現有內容
-
-                        if (snapshot.empty) {
-                            targetClassesContainer.innerHTML = '<p class="col-span-3 text-red-500 font-bold">找不到班級資料。請檢查 Firestore 集合是否為: public/data/classes</p>';
-                            return;
-                        }
-
-                        snapshot.forEach((doc) => {
-                            const classData = doc.data();
-                            const classId = doc.id;
-                            const classLabel = classData.name || classId; // 使用 name 欄位作為顯示名稱，沒有則用 ID
-
-                            const checkboxDiv = document.createElement('div');
-                            checkboxDiv.innerHTML = `
-                                <label class="flex items-center text-sm">
-                                    <input type="checkbox" name="targetClasses" value="${classId}" class="h-4 w-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
-                                    <span class="ml-2 text-gray-700">${classLabel}</span>
-                                </label>
-                            `;
-                            targetClassesContainer.appendChild(checkboxDiv);
-                        });
-                        console.log(`[Firestore] 成功載入 ${snapshot.size} 個班級。`);
-                    }
-                }, (error) => {
-                    console.error("[Firestore] 載入班級列表失敗: ", error);
-                    // 即使失敗也要移除載入中的提示，並給予錯誤訊息
-                    if (classesLoadingPlaceholder) {
-                        classesLoadingPlaceholder.classList.remove('hidden');
-                        classesLoadingPlaceholder.innerHTML = '<p class="col-span-3 text-red-500 font-bold">載入班級資料失敗。請檢查權限或集合路徑。</p>';
-                    }
-                });
-
-            } catch (e) {
-                console.error("載入班級列表時發生錯誤: ", e);
-                if (classesLoadingPlaceholder) {
-                    classesLoadingPlaceholder.classList.remove('hidden');
-                    classesLoadingPlaceholder.innerHTML = '<p class="col-span-3 text-red-500 font-bold">載入班級資料時發生致命錯誤。</p>';
-                }
-            }
-        }
-
-        // --- 訊息列表渲染與操作 ---
-
-        /**
-         * 渲染單一訊息卡片。
-         * @param {string} id - 文件 ID
-         * @param {object} msg - 訊息資料
-         * @returns {string} HTML 字串
-         */
-        function renderMessageCard(id, msg) {
-            const isEmergency = msg.isEmergency ? 'border-red-600 bg-red-50' : 'border-primary-green bg-green-50';
-            const textColor = msg.isEmergency ? 'text-red-700' : 'text-primary-green';
-            const classesText = msg.targetClasses && msg.targetClasses.length > 0 ? msg.targetClasses.join(', ') : '所有班級';
-            const expiresText = formatTimestamp(msg.expiresAt);
-
-            // 確保沒有任何淡化 (faded) 或透明度 (opacity) 的樣式，以符合需求
-            return `
-                <div id="msg-${id}" class="card p-4 border-l-4 ${isEmergency}">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-xs text-gray-500">
-                                單位: <span class="font-medium">${msg.unit}</span> | 
-                                對象: <span class="font-medium">${classesText}</span> |
-                                發佈時間: <span class="font-medium">${formatTimestamp(msg.createdAt)}</span>
-                            </p>
-                            <p class="mt-1 text-lg font-bold ${textColor}">${msg.content}</p>
-                            <p class="mt-2 text-sm text-gray-600">過期時間: <span class="font-bold">${expiresText}</span></p>
-                        </div>
-                        <div class="flex space-x-2 flex-shrink-0 mt-1">
-                            <button type="button" onclick="handleEdit('${id}')" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                                編輯
-                            </button>
-                            <button type="button" onclick="handleDelete('${id}')" class="text-sm text-red-600 hover:text-red-800 font-medium">
-                                刪除
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        /**
-         * 監聽訊息列表，即時渲染更新。
-         */
-        function setupMessagesListener() {
-            // 訊息集合路徑
-            const messagesCollectionPath = `artifacts/${appId}/public/data/messages`;
-            const messagesRef = collection(db, messagesCollectionPath);
-            
-            // 查詢條件：僅顯示尚未過期的訊息 (expiresAt > 當前時間)
-            const now = new Date();
-            // 排序條件：1.expiresAt (範圍查詢必須在最前面), 2.unit (處室名稱), 3.createdAt (同處室內最新時間)
-            const q = query(
-                messagesRef,
-                where("expiresAt", ">", now),
-                orderBy("expiresAt", "asc"), 
-                orderBy("unit", "asc"),      
-                orderBy("createdAt", "desc") 
-            );
-
-            onSnapshot(q, (snapshot) => {
-                const messageHtml = [];
-                // 清空狀態標籤，如果列表有內容則會隱藏
-                listStatus.textContent = '';
-                listStatus.classList.add('hidden');
-
-                if (snapshot.empty) {
-                    listStatus.textContent = "目前沒有活躍的廣播訊息。";
-                    listStatus.classList.remove('hidden');
-                } else {
-                    snapshot.forEach(doc => {
-                        const msg = doc.data();
-                        messageHtml.push(renderMessageCard(doc.id, msg));
-                    });
-                    
-                    messagesList.innerHTML = messageHtml.join('');
-                    console.log(`[Firestore] 成功載入 ${snapshot.size} 則活躍訊息。`);
-                }
-            }, (error) => {
-                console.error("[Firestore] 監聽訊息列表失敗: ", error);
-                listStatus.textContent = "載入訊息列表失敗，請檢查網路連線、複合索引或權限設定。";
-                listStatus.classList.remove('hidden');
-            });
-        }
-
-        // --- 編輯與刪除操作 (必須在 window 上註冊) ---
         
-        /**
-         * 處理編輯按鈕點擊事件，將資料載入到表單。
-         * @param {string} id - 訊息文件 ID
-         */
-        window.handleEdit = async function(id) {
-            const docRef = doc(db, `artifacts/${appId}/public/data/messages`, id);
-            try {
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const msg = docSnap.data();
-                    editModeDocId.value = id;
-                    formTitle.textContent = `編輯廣播訊息 (ID: ${id.substring(0, 8)}...)`;
-                    document.querySelector('#unit-select').value = msg.unit;
-                    document.querySelector('#message-content').value = msg.content;
-                    document.querySelector('#is-emergency').checked = msg.isEmergency || false;
+        let unitData = []; // Store original unit data {id, name}
 
-                    // Reset and check target classes
-                    document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false);
-                    (msg.targetClasses || []).forEach(classId => {
-                        const cb = document.querySelector(`input[value="${classId}"]`);
-                        if(cb) cb.checked = true;
-                    });
-                    
-                    // 由於沒有 duration 欄位，維持預設選擇 8 小時
-                    document.querySelector('input[name="duration"][value="8"]').checked = true;
-
-                    cancelEditBtn.classList.remove('hidden');
-                    window.scrollTo(0, 0); // 捲動到表單頂部
-                } else {
-                    console.warn(`找不到 ID 為 ${id} 的文件`);
-                }
-            } catch (error) {
-                console.error("載入編輯資料失敗:", error);
-            }
-        }
-        
-        /**
-         * 處理刪除按鈕點擊事件，直接從 Firestore 中永久刪除文件。
-         * @param {string} id - 訊息文件 ID
-         */
-        window.handleDelete = async function(id) {
-             // 使用自定義模態框取代 confirm()
-            if (!document.getElementById('delete-modal')) {
-                createDeleteModal(id);
+        // Auth State
+        onAuthStateChanged(auth, user => {
+            if (user && user.email.endsWith('@tcsh.hlc.edu.tw')) {
+                loginContainer.classList.add('hidden');
+                mainContainer.classList.remove('hidden');
+                userInfo.textContent = `管理員：${user.displayName} (${user.email})`;
+                checkAdminPermission(user.email);
             } else {
-                const modal = document.getElementById('delete-modal');
-                modal.dataset.deleteId = id;
-                modal.classList.remove('hidden');
-            }
-        }
-        
-        /**
-         * 建立並顯示自定義刪除確認模態框
-         * @param {string} id - 訊息文件 ID
-         */
-        function createDeleteModal(id) {
-            const modalHtml = `
-                <div id="delete-modal" data-delete-id="${id}" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-20">
-                    <div class="card p-6 w-11/12 md:w-1/3 mx-auto">
-                        <h3 class="text-xl font-bold mb-4 text-red-700">確認永久刪除</h3>
-                        <p class="mb-6">您確定要**永久**刪除這則廣播訊息嗎？刪除後將立即從所有人的廣播列表中消失。</p>
-                        <div class="flex justify-end gap-3">
-                            <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition" onclick="closeDeleteModal()">
-                                取消
-                            </button>
-                            <button type="button" id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition">
-                                確定刪除
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-            document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
-                const deleteId = document.getElementById('delete-modal').dataset.deleteId;
-                closeDeleteModal();
-                try {
-                    await deleteDoc(doc(db, `artifacts/${appId}/public/data/messages`, deleteId));
-                    console.log(`文件 ID: ${deleteId} 已成功永久刪除。`);
-                } catch (error) {
-                    console.error("刪除文件失敗:", error);
-                }
-            });
-        }
-
-        /**
-         * 關閉自定義刪除確認模態框
-         */
-        window.closeDeleteModal = function() {
-            const modal = document.getElementById('delete-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-            }
-        }
-
-
-        /**
-         * 重設表單狀態。
-         */
-        window.resetForm = function() {
-            broadcastForm.reset();
-            formTitle.textContent = '新增廣播訊息';
-            // 重新檢查預設持續時間
-            document.querySelector('input[name="duration"][value="8"]').checked = true;
-            editModeDocId.value = '';
-            cancelEditBtn.classList.add('hidden');
-            // 確保所有班級選框都取消選取
-            document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false);
-        }
-
-        // --- 表單提交處理 ---
-
-        broadcastForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const unit = document.querySelector('#unit-select').value;
-            const content = document.querySelector('#message-content').value;
-            const isEmergency = document.querySelector('#is-emergency').checked;
-            const durationHours = parseInt(document.querySelector('input[name="duration"]:checked').value, 10);
-            
-            const selectedClasses = Array.from(document.querySelectorAll('input[name="targetClasses"]:checked'))
-                                         .map(cb => cb.value);
-
-            // 確保至少有一個班級被選中，除非班級列表根本沒有載入（但現在應該會載入）
-            if (selectedClasses.length === 0 && targetClassesContainer.childElementCount > 0 && classesLoadingPlaceholder.classList.contains('hidden')) {
-                // 使用自定義模態框取代 alert()
-                showCustomAlert("請選擇至少一個廣播對象！", "warning");
-                return;
-            }
-
-
-            // 計算過期時間
-            const expiresAt = new Date();
-            expiresAt.setTime(expiresAt.getTime() + durationHours * 60 * 60 * 1000);
-
-            const messageData = {
-                unit: unit,
-                content: content,
-                isEmergency: isEmergency,
-                targetClasses: selectedClasses,
-                expiresAt: expiresAt,
-                // createdAt 和 createdBy 只在新增時設定
-            };
-
-            const docId = editModeDocId.value;
-
-            try {
-                if (docId) {
-                    // 編輯模式
-                    const docRef = doc(db, `artifacts/${appId}/public/data/messages`, docId);
-                    await updateDoc(docRef, messageData);
-                    console.log("訊息更新成功:", docId);
-                } else {
-                    // 新增模式
-                    const docRef = collection(db, `artifacts/${appId}/public/data/messages`);
-                    await addDoc(docRef, {
-                        ...messageData,
-                        createdAt: serverTimestamp(),
-                        createdBy: userId
-                    });
-                    console.log("訊息發佈成功");
-                }
-                
-                // 無論新增或編輯成功，都重設表單
-                resetForm();
-
-            } catch (error) {
-                console.error("發佈或更新訊息失敗:", error);
-                showCustomAlert(`發佈失敗: ${error.message}`, "error");
+                mainContainer.classList.add('hidden');
+                loginContainer.classList.remove('hidden');
             }
         });
 
-        // --- 自定義提示框 (取代 alert/confirm) ---
-        function showCustomAlert(message, type = "info") {
-            const modalId = 'custom-alert-modal';
-            let modal = document.getElementById(modalId);
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = modalId;
-                modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50 hidden';
-                document.body.appendChild(modal);
+        async function checkAdminPermission(email) {
+            const docRef = doc(db, "admins", email);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                appContent.classList.remove('hidden');
+                permissionDenied.classList.add('hidden');
+                loadInitialData();
+            } else {
+                appContent.classList.add('hidden');
+                permissionDenied.classList.remove('hidden');
             }
+        }
+        
+        // Data Loading and Rendering
+        function loadInitialData() {
+            // Real-time listeners
+            onSnapshot(collection(db, "units"), (snapshot) => {
+                unitData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUnits();
+            });
             
-            let color = 'bg-blue-500';
-            let title = '提示';
-            if (type === 'error') {
-                color = 'bg-red-500';
-                title = '錯誤';
-            } else if (type === 'warning') {
-                color = 'bg-yellow-500';
-                title = '警告';
-            }
+            // 修正 Firebase 查詢語法，解決讀取班級對應表的問題
+            const classQuery = query(collection(db, "class_map"), orderBy("classId"));
+            onSnapshot(classQuery, (snapshot) => {
+                renderClassCheckboxes(snapshot.docs.map(doc => doc.data()));
+            });
 
-            modal.innerHTML = `
-                <div class="card p-6 w-11/12 md:w-1/3 mx-auto">
-                    <h3 class="text-xl font-bold mb-4 text-white p-2 rounded ${color}">${title}</h3>
-                    <p class="mb-6 text-gray-700">${message}</p>
-                    <div class="flex justify-end">
-                        <button type="button" class="bg-primary-green hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition" onclick="document.getElementById('${modalId}').classList.add('hidden')">
-                            確定
-                        </button>
+            const q = query(collection(db, "messages"), where("expiresAt", ">", new Date()), orderBy("expiresAt", "desc"));
+            onSnapshot(q, (snapshot) => {
+                renderMessages(snapshot.docs);
+            });
+        }
+        
+        function renderUnits() {
+            unitSelect.innerHTML = '<option value="">請選擇單位</option>';
+            unitList.innerHTML = '';
+            unitData.forEach(({ id, name }) => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                unitSelect.appendChild(option);
+
+                const item = document.createElement('div');
+                item.className = 'unit-item';
+                item.innerHTML = `<input type="text" value="${name}" data-id="${id}" class="flex-grow"><button data-id="${id}" class="remove-unit-btn">✖</button>`;
+                unitList.appendChild(item);
+            });
+            document.querySelectorAll('.remove-unit-btn').forEach(btn => btn.addEventListener('click', () => btn.parentElement.remove()));
+        }
+        
+        function renderClassCheckboxes(classes) {
+             classCheckboxContainer.innerHTML = '';
+             const grades = {};
+             
+             // 1. Add All-School option first
+             const allDiv = document.createElement('div');
+             allDiv.className = 'grade-row flex items-center bg-gray-50 p-2 rounded-t-md';
+             allDiv.innerHTML = `<div class="flex items-center font-bold w-full"><input id="class-All" name="targetClasses" value="All" type="checkbox" class="h-4 w-4 text-indigo-600"><label for="class-All" class="ml-2">全校廣播</label></div>`;
+             classCheckboxContainer.appendChild(allDiv);
+
+             // 2. Group classes by grade
+             classes.forEach(c => {
+                 // 假設 class name 格式為 "國一-知足"
+                 const parts = c.name.split('-');
+                 const grade = parts[0]; // 例如 "國一"
+                 const className = parts.length > 1 ? parts[1] : c.name; // 例如 "知足"
+                 if (!grades[grade]) grades[grade] = { classes: [], names: [] };
+                 grades[grade].classes.push({ id: c.classId, name: className });
+                 grades[grade].names.push(className);
+             });
+
+             // 3. Render each grade row
+             for (const grade in grades) {
+                const gradeInfo = grades[grade];
+                
+                const gradeDiv = document.createElement('div');
+                gradeDiv.className = "grade-row flex items-center p-2 hover:bg-gray-100";
+                
+                // Class Checkboxes (Actual functional inputs - hidden)
+                const hiddenInputsHTML = gradeInfo.classes.map(c => 
+                     `<input id="class-${c.id}" name="targetClasses" value="${c.id}" type="checkbox" class="class-checkbox-${grade} hidden">`
+                ).join('');
+                
+                // Display and Grade Checkbox
+                gradeDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <input id="grade-${grade}" type="checkbox" class="h-4 w-4 text-indigo-600 grade-checkbox" data-grade="${grade}">
+                        <label for="grade-${grade}" class="ml-2 font-semibold text-gray-700 w-12">${grade}</label>
                     </div>
-                </div>
-            `;
-            modal.classList.remove('hidden');
+                    <!-- 簡短顯示班級名稱 -->
+                    <div class="flex-1 text-sm text-gray-600 ml-4 space-x-2">
+                        ${gradeInfo.names.map(name => `<span class="whitespace-nowrap">${name}</span>`).join(' ')}
+                    </div>
+                    <div class="hidden-class-inputs">${hiddenInputsHTML}</div>
+                `;
+                classCheckboxContainer.appendChild(gradeDiv);
+             }
+             
+             // Add event listeners for grade-level checkboxes
+             document.querySelectorAll('.grade-checkbox').forEach(cb => {
+                 cb.addEventListener('change', (e) => {
+                     const grade = e.target.dataset.grade;
+                     // 找到所有屬於該年級的隱藏 class checkbox，並同步勾選狀態
+                     document.querySelectorAll(`.class-checkbox-${grade}`).forEach(classCb => classCb.checked = e.target.checked);
+                 });
+             });
+             
+             // 確保表單重設時，所有班級勾選狀態能被還原
+             // (在 handleEdit 中會手動設定狀態)
         }
 
-
-        // --- 啟動函式 ---
-
-        /**
-         * 應用程式啟動流程。
-         */
-        async function initializeAppAndAuth() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+        function renderMessages(docs) {
+            messageList.innerHTML = '';
+            if (docs.length === 0) {
+                 messageList.innerHTML = `<p class="text-gray-500 text-center">沒有未過期的訊息。</p>`;
+            }
+            docs.forEach(doc => {
+                const msg = { id: doc.id, ...doc.data() };
+                const card = document.createElement('div');
+                card.className = `p-4 border rounded-md ${msg.isEmergency ? 'bg-red-50 border-red-200' : 'bg-gray-50'}`;
                 
-                // 處理認證流程
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
+                const timeLeft = Math.round((msg.expiresAt.toDate() - new Date()) / (1000 * 60 * 60));
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-bold">${msg.unit}</p>
+                            <p class="text-sm mt-1">${msg.content}</p>
+                        </div>
+                        <div class="flex gap-2">
+                             <button class="edit-btn text-sm text-blue-500" data-id="${msg.id}">編輯</button>
+                             <button class="delete-btn text-sm text-red-500" data-id="${msg.id}">刪除</button>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2 pt-2 border-t">
+                        發布給: ${msg.targetClasses.join(', ')} | ${msg.isEmergency ? '<span class="font-bold text-red-600">緊急</span> |' : ''} 剩餘: ${timeLeft} 小時
+                    </div>
+                `;
+                messageList.appendChild(card);
+            });
+            
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', () => handleEdit(btn.dataset.id)));
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => handleDelete(btn.dataset.id)));
+        }
+        
+        // Event Handlers
+        loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
+        addUnitBtn.addEventListener('click', () => {
+            const item = document.createElement('div');
+            item.className = 'unit-item';
+            item.innerHTML = `<input type="text" placeholder="新單位名稱" data-id="" class="flex-grow"><button class="remove-unit-btn">✖</button>`;
+            unitList.appendChild(item);
+            item.querySelector('button').addEventListener('click', () => item.remove());
+        });
+        
+        saveUnitsBtn.addEventListener('click', async () => {
+            const batch = writeBatch(db);
+            const newUnitElements = unitList.querySelectorAll('input');
+            const newUnitNames = new Set();
+            let hasError = false;
+
+            newUnitElements.forEach(input => {
+                const name = input.value.trim();
+                if (!name) { alert("單位名稱不可為空！"); hasError = true; return; }
+                if (newUnitNames.has(name)) { alert(`單位名稱 "${name}" 重複！`); hasError = true; return; }
+                newUnitNames.add(name);
+                
+                const id = input.dataset.id;
+                if (id) { // Update existing
+                    batch.update(doc(db, "units", id), { name });
+                } else { // Add new
+                    batch.set(doc(collection(db, "units")), { name });
                 }
+            });
 
-                // 監聽認證狀態變化
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        console.log(`[Auth] 使用者已登入。UID: ${userId}`);
-                        
-                        if (!isAuthReady) {
-                            isAuthReady = true;
-                            // 認證就緒後才開始載入資料和設定監聽
-                            loadClassesAndRenderCheckboxes(); // 載入班級列表 (已修正路徑)
-                            setupMessagesListener();          // 監聽訊息列表
+            if (hasError) return;
 
-                            // 隱藏載入畫面，顯示應用程式內容
-                            loadingOverlay.classList.add('hidden');
-                            appContent.classList.remove('hidden');
-                        }
-                    } else {
-                        // 認證失敗或登出，確保載入畫面消失
-                        if (!isAuthReady) {
-                             loadingOverlay.classList.add('hidden');
-                             appContent.classList.remove('hidden');
-                             listStatus.textContent = "認證失敗，請檢查權限設定。";
-                             console.error("[Auth] 認證失敗或用戶已登出。");
-                        }
+            // Handle deletions
+            const originalNames = new Set(unitData.map(u => u.name));
+            const currentNames = new Set(Array.from(newUnitElements).map(el => el.value.trim()));
+            originalNames.forEach(name => {
+                if (!currentNames.has(name)) {
+                    const unitToDelete = unitData.find(u => u.name === name);
+                    if (unitToDelete) batch.delete(doc(db, "units", unitToDelete.id));
+                }
+            });
+            
+            try {
+                await batch.commit();
+                // 使用非 alert 的方式顯示成功訊息
+                console.log("單位列表更新成功！"); 
+                document.getElementById('unit-management').open = false;
+            } catch (e) { 
+                console.error("更新失敗：", e);
+                // 使用非 alert 的方式顯示錯誤訊息
+            }
+        });
+
+        broadcastForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const unit = broadcastForm.querySelector('#unit-select').value;
+            const content = broadcastForm.querySelector('#message-content').value;
+            const isEmergency = broadcastForm.querySelector('#is-emergency').checked;
+            const durationHours = parseInt(broadcastForm.querySelector('input[name="duration"]:checked').value);
+            // 抓取所有 name="targetClasses" 且被勾選的輸入欄位
+            const selectedClasses = Array.from(document.querySelectorAll('input[name="targetClasses"]:checked')).map(cb => cb.value);
+
+            if (!unit || !content.trim() || selectedClasses.length === 0) {
+                console.error('發布單位、訊息內容和廣播對象皆不可為空！'); return;
+            }
+
+            const messageData = {
+                unit, content, isEmergency,
+                targetClasses: selectedClasses,
+                author: { name: auth.currentUser.displayName, email: auth.currentUser.email },
+                createdAt: serverTimestamp(),
+                expiresAt: new Date(Date.now() + durationHours * 60 * 60 * 1000)
+            };
+            
+            try {
+                const docId = editModeDocId.value;
+                if (docId) { // Edit mode
+                    await updateDoc(doc(db, "messages", docId), messageData);
+                    console.log('公告更新成功！');
+                } else { // Create mode
+                    await addDoc(collection(db, "messages"), messageData);
+                    console.log('公告發布成功！');
+                }
+                resetForm();
+            } catch (error) { 
+                console.error(`操作失敗: ${error.message}`); 
+            }
+        });
+
+        cancelEditBtn.addEventListener('click', resetForm);
+        
+        async function handleEdit(id) {
+            const docRef = doc(db, "messages", id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const msg = docSnap.data();
+                editModeDocId.value = id;
+                document.querySelector('#unit-select').value = msg.unit;
+                document.querySelector('#message-content').value = msg.content;
+                document.querySelector('#is-emergency').checked = msg.isEmergency;
+                
+                // 1. 重設所有班級和年級的勾選狀態
+                document.querySelectorAll('input[name="targetClasses"]').forEach(cb => cb.checked = false);
+                document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = false);
+
+                // 2. 勾選目標班級
+                const checkedGrades = new Set();
+                msg.targetClasses.forEach(classId => {
+                    const cb = document.querySelector(`input[value="${classId}"]`);
+                    if(cb) {
+                        cb.checked = true;
+                        // 嘗試從 classId 推導 grade，這裡需要 class_map 的完整資料
+                        // 由於 class_map 資料在外面，我們假設 grade 也在 input 的 class 中
+                        // 這裡的做法是直接檢查所有屬於該年級的 class 是否都被勾選
+                    }
+                });
+                
+                // 3. 檢查並勾選年級總體選項 (如果該年級所有班級都被勾選)
+                document.querySelectorAll('.grade-checkbox').forEach(gradeCb => {
+                    const grade = gradeCb.dataset.grade;
+                    const classCbs = document.querySelectorAll(`.class-checkbox-${grade}`);
+                    const totalClasses = classCbs.length;
+                    const checkedClasses = Array.from(classCbs).filter(cb => cb.checked).length;
+                    if (totalClasses > 0 && totalClasses === checkedClasses) {
+                        gradeCb.checked = true;
                     }
                 });
 
-            } catch (error) {
-                console.error("Firebase 初始化失敗或認證錯誤:", error);
-                // 無論如何，如果發生錯誤，也要移除載入畫面
-                loadingOverlay.classList.add('hidden');
-                appContent.classList.remove('hidden');
-                document.getElementById('list-status').textContent = `系統啟動錯誤: ${error.message}`;
+                cancelEditBtn.classList.remove('hidden');
+                window.scrollTo(0, 0);
             }
         }
-
-        // 啟動應用程式
-        initializeAppAndAuth();
+        
+        async function handleDelete(id) {
+            if (confirm("確定要刪除（使此訊息立即過期）嗎？")) {
+                await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
+                console.log("訊息已刪除。");
+            }
+        }
+        
+        function resetForm() {
+            broadcastForm.reset();
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.querySelector('input[name="duration"][value="8"]').checked = true;
+            editModeDocId.value = '';
+            cancelEditBtn.classList.add('hidden');
+        }
 
     </script>
 </body>
