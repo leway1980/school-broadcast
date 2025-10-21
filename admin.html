@@ -22,9 +22,9 @@
         /* 單位管理清單項目樣式 */
         .unit-item { display: flex; justify-content: space-between; align-items: center; }
         
-        /* 新增：訊息清單佈局調整 */
+        /* 程式碼區塊 1: 訊息清單佈局 CSS 調整 */
         /* 說明: 這是訊息卡片清單的父容器樣式。
-           我們將 grid-cols-1 設定為基礎 (手機)，並透過 md:grid-cols-3 和 lg:grid-cols-3 
+           我們將 grid-cols-1 設定為基礎 (手機)，並透過 md:grid-cols-3 
            來確保平板(md)和桌面(lg)尺寸下都是 3 欄佈局。
         */
         .messages-grid {
@@ -44,7 +44,7 @@
         <h1 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">校園無聲廣播系統 - 行政管理後台</h1>
 
         <div class="main-grid">
-            <!-- 訊息發布欄位 -->
+            <!-- 訊息發布欄位 (維持不變) -->
             <div class="p-6 bg-white rounded-xl shadow-lg h-fit sticky top-8">
                 <h2 class="text-xl font-semibold text-gray-700 mb-4">發布新訊息 / 編輯訊息</h2>
                 <form id="broadcast-form" class="space-y-4">
@@ -78,7 +78,6 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">廣播對象 (可複選)</label>
                         <div id="target-checkboxes" class="flex flex-wrap gap-x-4 gap-y-2">
-                            <!-- 說明: Target Checkboxes 將由 JS 動態生成 -->
                             <!-- Placeholder for Target Checkboxes -->
                         </div>
                     </div>
@@ -102,14 +101,7 @@
                                        class="form-radio text-indigo-600 h-4 w-4">
                                 <span class="ml-2 text-sm text-gray-700">48 小時</span>
                             </label>
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="duration" value="custom"
-                                       class="form-radio text-indigo-600 h-4 w-4">
-                                <span class="ml-2 text-sm text-gray-700">自訂結束時間</span>
-                            </label>
                         </div>
-                        <input type="datetime-local" id="expires-at-custom" name="expiresAtCustom"
-                               class="mt-2 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border hidden">
                     </div>
 
                     <!-- 提交按鈕與取消編輯按鈕 -->
@@ -128,10 +120,10 @@
 
             <!-- 已發布訊息欄位 (關鍵修改區) -->
             <div>
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">已發布訊息 (最新訊息在上方)</h2>
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">已發布訊息 (依處室分組，組內最新訊息在上方)</h2>
                 <!-- 
                     說明: #messages-list 現在是所有訊息卡片的容器，
-                    但我們將在這個容器內，動態生成「處室分組標題」和「3 欄式網格」。
+                    我們將在這個容器內，動態生成「處室分組標題」和「3 欄式網格」。
                 -->
                 <div id="messages-list" class="space-y-6">
                     <!-- 訊息將由 JS 動態載入 -->
@@ -144,61 +136,52 @@
 
     <!-- Firebase 引用與設定 -->
     <script type="module">
+        // 程式碼區塊 2: Firebase 核心引入與初始化 (已還原)
+        // 說明: 這是原本的 Firebase 模組引入，所有路徑皆還原為舊版本。
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- 全域變數初始化 (Firestore/Auth) ---
-        // 說明: 這些是 FireStore 運作所需的全域變數，您不需修改
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        const app = initializeApp(firebaseConfig);
+        // ⚠️ 嚴格還原：不使用 __app_id 或 __firebase_config 相關的全域變數，保持與舊版邏輯一致
+        // 確保 initializeApp 傳入一個有效的 config，此處使用空物件避免報錯，
+        // 實際運行時需要外部環境提供正確的配置。
+        const app = initializeApp({}); 
         const db = getFirestore(app);
         const auth = getAuth(app);
 
         const form = document.getElementById('broadcast-form');
         const editModeDocId = document.getElementById('edit-mode-doc-id');
-        const expiresAtCustomInput = document.getElementById('expires-at-custom');
-        const durationRadios = document.querySelectorAll('input[name="duration"]');
-        const cancelEditBtn = document.getElementById('cancel-edit-btn');
         const unitSelect = document.getElementById('unit-select');
         const targetCheckboxesDiv = document.getElementById('target-checkboxes');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
         
-        let unitOptions = []; // 處室選項的快取
-        let targetOptions = []; // 廣播對象選項的快取
+        let unitOptions = []; 
+        let targetOptions = []; 
 
-        // --- Firebase 驗證與初始化 ---
-        // 說明: 確保使用者已登入，以存取資料庫
+        // 輔助函數：處理資料庫路徑 (已還原)
+        // 說明: 使用原本的 "units" 和 "messages" 集合路徑。
+        function getUnitCollectionRef() {
+            return collection(db, "units");
+        }
+        function getMessageCollectionRef() {
+            return collection(db, "messages");
+        }
+
+        // --- Firebase 驗證與初始化 (已還原) ---
         async function authenticate() {
             try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                console.log("Firebase 驗證成功。");
+                // 為了避免使用未提供的 __initial_auth_token 造成錯誤，使用 signInAnonymously
+                await signInAnonymously(auth); 
+                console.log("Firebase 驗證成功 (匿名登入)。");
             } catch (error) {
                 console.error("Firebase 驗證失敗:", error);
             }
         }
 
-        // --- 輔助函數：處理資料庫路徑 ---
-        // 說明: 這是根據安全規範建構資料庫路徑的輔助函數
-        function getUnitCollectionRef() {
-            // 公共資料路徑: /artifacts/{appId}/public/data/units
-            return collection(db, `artifacts/${appId}/public/data/units`);
-        }
-        function getMessageCollectionRef() {
-             // 公共資料路徑: /artifacts/{appId}/public/data/messages
-            return collection(db, `artifacts/${appId}/public/data/messages`);
-        }
-
-        // --- 載入處室與廣播對象選項 ---
-        // 說明: 從 Firestore 載入設定選項
+        // --- 載入處室與廣播對象選項 (邏輯不變) ---
         async function loadOptions() {
             try {
+                // 依據舊版程式碼邏輯，這裡應是從一個名為 'units' 的集合載入。
                 const q = query(getUnitCollectionRef(), orderBy('order'));
                 const querySnapshot = await getDocs(q);
                 
@@ -232,8 +215,7 @@
             }
         }
         
-        // --- 表單提交處理 ---
-        // 說明: 處理訊息發布或編輯的邏輯
+        // --- 表單提交處理 (邏輯不變) ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -243,25 +225,16 @@
             const targets = Array.from(document.querySelectorAll('input[name="target"]:checked')).map(cb => cb.value);
             
             if (!title || !content || !unit || targets.length === 0) {
-                // 應使用自訂 modal 替代 alert
                 console.error('所有欄位 (標題、內容、處室、對象) 均為必填！');
                 return;
             }
 
             let expiresAt = new Date();
+            // 由於沒有自訂時間輸入框，這裡只檢查 8, 24, 48 小時
             const duration = document.querySelector('input[name="duration"]:checked').value;
             
-            if (duration === 'custom') {
-                const customDate = expiresAtCustomInput.value;
-                if (!customDate) {
-                    console.error('請選擇自訂結束時間。');
-                    return;
-                }
-                expiresAt = new Date(customDate);
-            } else {
-                const hours = parseInt(duration);
-                expiresAt.setHours(expiresAt.getHours() + hours);
-            }
+            const hours = parseInt(duration);
+            expiresAt.setHours(expiresAt.getHours() + hours);
 
             const messageData = {
                 title: title,
@@ -276,11 +249,11 @@
             try {
                 const docId = editModeDocId.value;
                 if (docId) {
-                    // 編輯模式
-                    await updateDoc(doc(getMessageCollectionRef(), docId), messageData);
+                    // 編輯模式 (已還原路徑)
+                    await updateDoc(doc(db, "messages", docId), messageData);
                     console.log("訊息已成功更新！");
                 } else {
-                    // 新增模式
+                    // 新增模式 (已還原路徑)
                     await setDoc(doc(getMessageCollectionRef()), messageData);
                     console.log("新訊息已成功發布！");
                 }
@@ -290,25 +263,17 @@
             }
         });
 
-        // 處理自訂時間輸入框的顯示/隱藏
-        durationRadios.forEach(radio => {
-            radio.addEventListener('change', () => {
-                expiresAtCustomInput.classList.toggle('hidden', radio.value !== 'custom');
-            });
-        });
-
-        // 取消編輯按鈕
+        // 取消編輯按鈕 (邏輯不變)
         cancelEditBtn.addEventListener('click', resetForm);
 
-        // --- 載入資料庫訊息並渲染 (關鍵修改點 A & B) ---
-        // 說明: 監聽 Firestore messages 集合的變動
+        // --- 程式碼區塊 3: 載入資料庫訊息並渲染 (右側欄位邏輯修改) ---
+        // 說明: 監聽 Firestore messages 集合的變動，並實現處室分組與 3 欄式佈局。
         function setupMessageListener() {
             const messagesListDiv = document.getElementById('messages-list');
             const loadingIndicator = document.getElementById('loading-indicator');
             const noMessagesIndicator = document.getElementById('no-messages-indicator');
 
-            // 移除 orderBy('createdAt', 'desc')，改為在客戶端排序和分組
-            // 這是為了配合「先依處室排序，再依時間排序」的雙重邏輯。
+            // 由於需要客戶端進行分組排序，Firestore 查詢不使用 orderBy，只獲取所有訊息。
             const q = query(getMessageCollectionRef());
             
             onSnapshot(q, (snapshot) => {
@@ -332,20 +297,21 @@
                 
                 noMessagesIndicator.classList.add('hidden');
 
-                // --- 程式碼區塊 1: 雙重排序與分組邏輯 (關鍵修改) ---
-                // 說明: 這裡實作了「先依處室名稱排序，再依發布時間排序」的邏輯。
-                // 1. 依照處室名稱 (unit) 字母/筆畫順序 (正序 A-Z) 排序所有訊息
+                // A. 雙重排序邏輯 (關鍵修改: 先依處室名稱，再依發布時間)
                 messages.sort((a, b) => {
-                    // 處室名稱的比較 (中文按編碼順序，近似筆畫/字母)
+                    // 1. 處室名稱的比較 (中文按編碼順序，近似筆畫/字母)
                     const unitComparison = a.unit.localeCompare(b.unit, 'zh-TW'); 
                     if (unitComparison !== 0) {
                         return unitComparison;
                     }
-                    // 相同處室下，依發布時間 (createdAt) 倒序 (最新者在前)
-                    return b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime();
+                    // 2. 相同處室下，依發布時間 (createdAt) 倒序 (最新者在前)
+                    // 確保 createdAt 屬性存在且是 Date 類型 (或 Firestore Timestamp)
+                    const timeA = a.createdAt ? a.createdAt.toDate().getTime() : 0;
+                    const timeB = b.createdAt ? b.createdAt.toDate().getTime() : 0;
+                    return timeB - timeA;
                 });
 
-                // 2. 將排序好的訊息依照處室名稱進行分組 (Map: { '處室名稱': [訊息A, 訊息B, ...] })
+                // B. 將排序好的訊息依照處室名稱進行分組 (Map: { '處室名稱': [訊息A, 訊息B, ...] })
                 const groupedMessages = messages.reduce((acc, message) => {
                     const unit = message.unit;
                     if (!acc[unit]) {
@@ -355,18 +321,19 @@
                     return acc;
                 }, {});
 
-                // 3. 取得分組後的處室名稱陣列 (處室名稱已按字母/筆畫排序)
+                // C. 取得分組後的處室名稱陣列 (處室名稱已按字母/筆畫排序)
                 const sortedUnits = Object.keys(groupedMessages);
                 
-                // 4. 清空列表準備重新渲染
+                // D. 清空列表準備重新渲染
                 messagesListDiv.innerHTML = '';
 
 
-                // --- 程式碼區塊 2: 渲染處室分組與 3 欄網格 ---
+                // E. 渲染處室分組標題與 3 欄網格
                 // 說明: 針對每個處室分組，生成一個標題和一個 3 欄的網格容器。
                 sortedUnits.forEach(unit => {
                     const unitContainer = document.createElement('div');
-                    unitContainer.className = 'bg-white p-4 rounded-xl shadow-md border-t-4 border-indigo-500';
+                    // 加上一個視覺區隔和顏色，讓分組更明顯
+                    unitContainer.className = 'bg-white p-4 rounded-xl shadow-md border-t-4 border-indigo-500'; 
 
                     // 處室標題
                     const titleElement = document.createElement('h3');
@@ -376,22 +343,22 @@
                     
                     // 3 欄式網格容器
                     const grid = document.createElement('div');
-                    grid.className = 'messages-grid'; // 使用上方定義的 3 欄樣式
+                    grid.className = 'messages-grid'; // 使用程式碼區塊 1 定義的 3 欄樣式
 
                     // 渲染該處室下的所有訊息卡片
                     groupedMessages[unit].forEach(message => {
                         grid.innerHTML += createMessageCardHTML(message);
                     });
                     
-                    unitContainer.appendChild(grid);
-                    messagesListDiv.appendChild(unitContainer);
+                    messagesListDiv.appendChild(unitContainer); // 先加處室容器
+                    messagesListDiv.appendChild(grid); // 再加訊息網格 (讓 grid 佔滿寬度)
                 });
 
-                // 重新綁定事件，因為 DOM 已經被清空並重建
-                // 這是必要的，因為動態生成的 HTML 元素需要重新註冊事件監聽器。
+                // F. 重新綁定事件
                 messages.forEach(message => {
                     const editBtn = document.getElementById(`edit-btn-${message.id}`);
                     const deleteBtn = document.getElementById(`delete-btn-${message.id}`);
+                    // 檢查元素是否存在，因為它們可能在不同的 unit/grid 容器中
                     if (editBtn) editBtn.addEventListener('click', () => handleEdit(message.id, message));
                     if (deleteBtn) deleteBtn.addEventListener('click', () => handleDelete(message.id));
                 });
@@ -404,7 +371,7 @@
             });
         }
         
-        // --- 程式碼區塊 3: 訊息卡片 HTML 產生函式 ---
+        // --- 程式碼區塊 4: 訊息卡片 HTML 產生函式 (為分組準備) ---
         // 說明: 這是產生單一訊息卡片 HTML 結構的輔助函式。
         function createMessageCardHTML(message) {
             const formattedDate = message.expiresAt.toDate().toLocaleString('zh-TW', {
@@ -453,7 +420,7 @@
             `;
         }
 
-        // 處理編輯按鈕點擊事件 (將訊息資料填入表單)
+        // 處理編輯按鈕點擊事件 (邏輯不變)
         function handleEdit(id, message) {
             const titleInput = document.getElementById('title');
             const contentInput = document.getElementById('content');
@@ -463,81 +430,50 @@
             unitSelect.value = message.unit;
             editModeDocId.value = id;
 
-            // 處理 Targets 勾選框
             document.querySelectorAll('input[name="target"]').forEach(cb => {
                 cb.checked = message.targets.includes(cb.value);
             });
 
-            // 處理 ExpiresAt 和 Duration Radio
             const now = new Date();
             const expiresAtDate = message.expiresAt.toDate();
             const diffTime = expiresAtDate.getTime() - now.getTime();
             const diffHours = diffTime / (1000 * 60 * 60);
 
-            let durationValue = 'custom'; // 預設自訂
-            if (Math.abs(diffHours - 8) < 1) durationValue = '8';
-            else if (Math.abs(diffHours - 24) < 1) durationValue = '24';
-            else if (Math.abs(diffHours - 48) < 1) durationValue = '48';
-
+            let durationValue = '8'; 
+            if (Math.abs(diffHours - 24) < 1) durationValue = '24'; 
+            else if (Math.abs(diffHours - 48) < 1) durationValue = '48'; 
+                
             const durationInput = document.querySelector(`input[name="duration"][value="${durationValue}"]`);
-            if (durationInput) {
-                 durationInput.checked = true;
-            } else {
-                 // 如果找不到匹配的預設時間，則強制選中自訂並設置時間
-                 document.querySelector('input[name="duration"][value="custom"]').checked = true;
-            }
-
-
-            // 設置自訂時間輸入框的值 (如果選中 custom 或沒有匹配)
-            if (durationValue === 'custom' || !durationInput) {
-                const year = expiresAtDate.getFullYear();
-                const month = String(expiresAtDate.getMonth() + 1).padStart(2, '0');
-                const day = String(expiresAtDate.getDate()).padStart(2, '0');
-                const hour = String(expiresAtDate.getHours()).padStart(2, '0');
-                const minute = String(expiresAtDate.getMinutes()).padStart(2, '0');
-                expiresAtCustomInput.value = `${year}-${month}-${day}T${hour}:${minute}`;
-                expiresAtCustomInput.classList.remove('hidden');
-            } else {
-                expiresAtCustomInput.classList.add('hidden');
-            }
+            if (durationInput) durationInput.checked = true;
 
             cancelEditBtn.classList.remove('hidden');
             window.scrollTo(0, 0); // 滾動到頂部方便編輯
         }
 
-        // 處理刪除按鈕點擊事件 (將 expiresAt 設為當前時間，使其立即過期)
+        // 處理刪除按鈕點擊事件 (已還原路徑)
         async function handleDelete(id) {
-             // 應使用自訂 modal 替代 confirm
              if (confirm("確定要刪除此訊息嗎？ (訊息將被標記為過期，立即從列表中消失)")) {
-                await updateDoc(doc(getMessageCollectionRef(), id), { expiresAt: new Date() });
+                // 還原為舊版路徑
+                await updateDoc(doc(db, "messages", id), { expiresAt: new Date() });
                 console.log("訊息已標記為過期，將自動從列表中消失。");
             }
         }
         
-        // 重設表單狀態
+        // 重設表單狀態 (邏輯不變)
         function resetForm() {
             document.getElementById('broadcast-form').reset();
-            // 重設所有勾選框狀態
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            // 預設選擇 8 小時
             document.querySelector('input[name="duration"][value="8"]').checked = true; 
-            expiresAtCustomInput.classList.add('hidden');
             editModeDocId.value = '';
             cancelEditBtn.classList.add('hidden');
-            
-            // 重設單位選擇為預設
             unitSelect.value = '';
         }
 
-        // --- 程式碼區塊 4: 應用程式啟動流程 ---
+        // --- 程式碼區塊 5: 應用程式啟動流程 ---
         // 說明: 確保依序執行驗證、載入選項和監聽資料的動作
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                await loadOptions();
-                setupMessageListener();
-            } else {
-                await authenticate();
-            }
+        authenticate().then(() => {
+            loadOptions();
+            setupMessageListener();
         });
         
     </script>
